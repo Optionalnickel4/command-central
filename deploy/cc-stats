@@ -1,0 +1,45 @@
+#!/bin/sh
+# cc-stats — read-only OpenClaw stats for the Command Central dashboard.
+#
+# INSTALL ON LXC 152 (10.0.0.152) as /usr/local/bin/cc-stats, mode 0755, root-owned.
+#
+# Invoked via an authorized_keys forced command:
+#   command="/usr/local/bin/cc-stats $SSH_ORIGINAL_COMMAND",no-port-forwarding,...
+#
+# SECURITY MODEL — the allowlist is the whole thing:
+#   * Only the first argument is ever read, and only four exact keywords match.
+#   * No user-supplied text is ever passed through to openclaw. Each branch
+#     execs a FIXED argv, so there is no way to append flags or subcommands.
+#   * Every write-capable openclaw subcommand (agents add/delete, cron add/rm/run,
+#     config set/patch, commitments dismiss, tasks cancel, ...) is unreachable:
+#     they simply are not in the case statement.
+#   * Anything else — including empty input — is denied with exit 1.
+#
+# Note on shell safety: sshd expands $SSH_ORIGINAL_COMMAND as a variable, so
+# metacharacters in it are word-split but never re-parsed as shell syntax.
+# `status; rm -rf /` arrives as the literal argument "status;" and is denied.
+
+set -eu
+
+# Forced commands get a minimal environment; be explicit about where tools live.
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+export PATH
+
+case "${1:-}" in
+  status)
+    exec openclaw status --json
+    ;;
+  sessions)
+    exec openclaw sessions --json
+    ;;
+  audit)
+    exec openclaw audit --json --limit 100
+    ;;
+  capability)
+    exec openclaw capability list
+    ;;
+  *)
+    echo "cc-stats: denied (allowed: status sessions audit capability)" >&2
+    exit 1
+    ;;
+esac

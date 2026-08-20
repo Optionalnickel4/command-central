@@ -1,0 +1,858 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================
+   COMMAND CENTRAL — HUD style system
+   Layer order (back to front):
+     -4 hud-bg      base wash
+     -3 hud-aurora  drifting colour fields   (parallax: far)
+     -2 hud-horizon perspective floor grid
+     -1 hud-grid    foreground lattice       (parallax: mid)
+      0 content                              (parallax: near)
+      +  hud-vignette / hud-noise overlays
+   ============================================================ */
+
+:root {
+  --hud-cyan: #22d3ee;
+  --hud-cyan-dim: #0e7490;
+  --hud-amber: #fbbf24;
+  --hud-red: #f43f5e;
+  --hud-green: #34d399;
+  --hud-bg: #030711;
+
+  /* Live reactive channels — written to <html> by <SystemPulse/> from real
+     Proxmox telemetry. Anything that breathes reads these, so the cockpit
+     reacts to actual load instead of animating on a fixed timer. 0..1 each. */
+  --sys-load: 0;
+  --sys-heat: 0;
+  --sys-alert: 0;
+
+  /* Pointer parallax, written by <ParallaxRoot/>. -1..1 on each axis. */
+  --mx: 0;
+  --my: 0;
+
+  /* Orb diameter. Shared so the conduits can centre themselves on the core
+     without hard-coding its size in two places. */
+  --orb-size: min(78vw, 460px);
+}
+
+body {
+  background-color: var(--hud-bg);
+  color: #cbd5e1;
+  overflow-x: hidden;
+}
+
+/* ---------- Background layers ---------------------------------- */
+
+.hud-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -4;
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 0%, rgba(34, 211, 238, 0.10), transparent 70%),
+    radial-gradient(ellipse 60% 50% at 100% 100%, rgba(251, 191, 36, 0.05), transparent 70%),
+    var(--hud-bg);
+}
+
+/* Parallax carrier for the aurora (keeps transform free of its keyframes). */
+.hud-depth-far {
+  position: fixed;
+  inset: 0;
+  z-index: -3;
+  pointer-events: none;
+  transform: translate3d(calc(var(--mx) * -22px), calc(var(--my) * -22px), 0);
+  transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.hud-aurora {
+  position: absolute;
+  inset: -25%;
+  background:
+    radial-gradient(circle at 22% 28%, rgba(34, 211, 238, 0.13), transparent 42%),
+    radial-gradient(circle at 78% 18%, rgba(59, 130, 246, 0.10), transparent 42%),
+    radial-gradient(circle at 62% 82%, rgba(251, 191, 36, 0.07), transparent 44%);
+  filter: blur(26px);
+  animation: aurora-drift 38s ease-in-out infinite alternate;
+}
+@keyframes aurora-drift {
+  from { transform: translate3d(-3%, -2%, 0) scale(1); }
+  to   { transform: translate3d(4%, 3%, 0) scale(1.12); }
+}
+
+/* Tron floor — perspective grid running toward the viewer. */
+.hud-horizon {
+  position: fixed;
+  left: -50%;
+  right: -50%;
+  bottom: -8%;
+  height: 44vh;
+  z-index: -2;
+  pointer-events: none;
+  opacity: 0.45;
+  background-image:
+    linear-gradient(rgba(34, 211, 238, 0.16) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(34, 211, 238, 0.16) 1px, transparent 1px);
+  background-size: 64px 64px;
+  transform: perspective(320px) rotateX(70deg);
+  transform-origin: bottom center;
+  -webkit-mask-image: linear-gradient(to top, black, transparent 78%);
+  mask-image: linear-gradient(to top, black, transparent 78%);
+  animation: horizon-run 7s linear infinite;
+}
+@keyframes horizon-run {
+  from { background-position: 0 0, 0 0; }
+  to   { background-position: 0 64px, 0 64px; }
+}
+
+.hud-grid {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(34, 211, 238, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(34, 211, 238, 0.06) 1px, transparent 1px);
+  background-size: 44px 44px;
+  -webkit-mask-image: radial-gradient(ellipse 100% 100% at 50% 40%, black 40%, transparent 90%);
+  mask-image: radial-gradient(ellipse 100% 100% at 50% 40%, black 40%, transparent 90%);
+  transform: translate3d(calc(var(--mx) * -9px), calc(var(--my) * -9px), 0);
+  transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+  animation: grid-drift 20s linear infinite;
+}
+@keyframes grid-drift {
+  from { background-position: 0 0, 0 0; }
+  to   { background-position: 44px 44px, 44px 44px; }
+}
+
+.hud-vignette {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+  background: radial-gradient(ellipse 78% 72% at 50% 45%, transparent 55%, rgba(0, 0, 0, 0.55));
+}
+.hud-noise {
+  position: fixed;
+  inset: 0;
+  z-index: 41;
+  pointer-events: none;
+  opacity: 0.035;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ---------- Panels --------------------------------------------- */
+
+.parallax-root { perspective: 1400px; }
+
+.hud-panel {
+  position: relative;
+  background:
+    linear-gradient(160deg, rgba(20, 34, 58, 0.55), rgba(8, 15, 30, 0.62));
+  border: 1px solid rgba(34, 211, 238, 0.25);
+  border-radius: 4px;
+  box-shadow:
+    0 0 0 1px rgba(34, 211, 238, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    inset 0 0 22px rgba(34, 211, 238, calc(0.04 + var(--sys-load) * 0.07)),
+    0 10px 30px rgba(0, 0, 0, 0.45),
+    0 0 26px rgba(34, 211, 238, calc(0.05 + var(--sys-load) * 0.10));
+  backdrop-filter: blur(3px);
+  transform:
+    translate3d(calc(var(--mx) * var(--depth, 5px)), calc(var(--my) * var(--depth, 5px)), 0)
+    rotateY(calc(var(--mx) * 0.7deg))
+    rotateX(calc(var(--my) * -0.7deg));
+  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+              border-color 0.3s ease,
+              box-shadow 0.3s ease;
+}
+.hud-panel:hover {
+  border-color: rgba(34, 211, 238, 0.45);
+  box-shadow:
+    0 0 0 1px rgba(34, 211, 238, 0.10),
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    inset 0 0 26px rgba(34, 211, 238, 0.09),
+    0 14px 38px rgba(0, 0, 0, 0.5),
+    0 0 38px rgba(34, 211, 238, 0.16);
+}
+
+/* All four corner brackets, drawn as background slices so both
+   pseudo-elements stay free for the sheen/scanline overlay. */
+.hud-panel::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  pointer-events: none;
+  border-radius: inherit;
+  opacity: 0.6;
+  background:
+    linear-gradient(var(--hud-cyan), var(--hud-cyan)) 0 0 / 13px 2px no-repeat,
+    linear-gradient(var(--hud-cyan), var(--hud-cyan)) 0 0 / 2px 13px no-repeat,
+    linear-gradient(var(--hud-cyan), var(--hud-cyan)) 100% 0 / 13px 2px no-repeat,
+    linear-gradient(var(--hud-cyan), var(--hud-cyan)) 100% 0 / 2px 13px no-repeat,
+    linear-gradient(var(--hud-cyan), var(--hud-cyan)) 0 100% / 13px 2px no-repeat,
+    linear-gradient(var(--hud-cyan), var(--hud-cyan)) 0 100% / 2px 13px no-repeat,
+    linear-gradient(var(--hud-cyan), var(--hud-cyan)) 100% 100% / 13px 2px no-repeat,
+    linear-gradient(var(--hud-cyan), var(--hud-cyan)) 100% 100% / 2px 13px no-repeat;
+}
+
+/* Holographic sheen sweep + scanlines in one layer. Only the sheen's
+   background-position animates; the scanlines stay pinned. */
+.hud-panel::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  overflow: hidden;
+  background:
+    linear-gradient(115deg, transparent 42%, rgba(190, 240, 255, 0.07) 50%, transparent 58%) -150% 0 / 250% 100% no-repeat,
+    linear-gradient(rgba(34, 211, 238, 0.035) 50%, transparent 50%) 0 0 / 100% 4px;
+  animation: hud-sheen 9s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+}
+@keyframes hud-sheen {
+  0%,  62% { background-position: -150% 0, 0 0; }
+  100%     { background-position: 250% 0, 0 0; }
+}
+
+/* Standalone scanline overlay for non-panel containers (panels bake it in). */
+.hud-scan::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(rgba(34, 211, 238, 0.04) 50%, transparent 50%);
+  background-size: 100% 4px;
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+/* Depth tiers — how far a panel drifts under the pointer. */
+.depth-near { --depth: 9px; }
+.depth-mid  { --depth: 5px; }
+.depth-far  { --depth: 2px; }
+
+/* ---------- Text / accents ------------------------------------- */
+
+.hud-glow-text {
+  color: var(--hud-cyan);
+  text-shadow: 0 0 8px rgba(34, 211, 238, 0.6);
+}
+.hud-glow-amber { color: var(--hud-amber); text-shadow: 0 0 8px rgba(251, 191, 36, 0.5); }
+.hud-glow-red   { color: var(--hud-red);   text-shadow: 0 0 8px rgba(244, 63, 94, 0.5); }
+
+.hud-title {
+  font-family: "Oswald", sans-serif;
+  letter-spacing: 0.34em;
+  text-shadow:
+    0 0 10px rgba(34, 211, 238, 0.55),
+    0 0 34px rgba(34, 211, 238, 0.25);
+}
+
+/* Section rule with a lit leading node. */
+.hud-rule {
+  height: 1px;
+  background: linear-gradient(to right,
+    rgba(34, 211, 238, 0.5),
+    rgba(34, 211, 238, 0.12) 40%,
+    transparent);
+}
+
+@keyframes live-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+/* Beats faster the harder the node is working. */
+.live-pulse { animation: live-pulse calc(2.2s - (var(--sys-load) * 1.2s)) ease-in-out infinite; }
+
+/* ---------- Ticker --------------------------------------------- */
+
+.ticker-track {
+  display: inline-block;
+  white-space: nowrap;
+  animation: ticker 30s linear infinite;
+}
+@keyframes ticker {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.ticker-mask {
+  -webkit-mask-image: linear-gradient(to right, transparent, black 4%, black 96%, transparent);
+  mask-image: linear-gradient(to right, transparent, black 4%, black 96%, transparent);
+}
+
+/* ---------- Power-on stagger ------------------------------------ */
+
+@keyframes power-on {
+  0% {
+    opacity: 0;
+    transform: translateY(16px) scaleY(0.84);
+    filter: brightness(2.4) saturate(0.25);
+    clip-path: inset(46% 0 46% 0);
+  }
+  45% {
+    opacity: 1;
+    filter: brightness(1.5) saturate(0.8);
+    clip-path: inset(0 0 0 0);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+    filter: none;
+    clip-path: inset(0 0 0 0);
+  }
+}
+.power-on {
+  animation: power-on 0.75s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation-delay: calc(var(--i, 0) * 85ms);
+}
+/* Held at frame 0 until the boot sequence hands over. */
+html[data-boot="active"] .power-on { animation-play-state: paused; }
+
+/* ---------- Boot sequence --------------------------------------- */
+
+.boot-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  background: radial-gradient(ellipse at center, #061020 0%, #010409 70%);
+  cursor: pointer;
+}
+.boot-overlay[data-phase="out"] {
+  animation: boot-out 0.55s ease forwards;
+  pointer-events: none;
+}
+@keyframes boot-out {
+  from { opacity: 1; clip-path: inset(0 0 0 0); }
+  to   { opacity: 0; clip-path: inset(50% 0 50% 0); }
+}
+
+.boot-reticle { animation: boot-reticle-in 0.9s cubic-bezier(0.2, 0.9, 0.2, 1) both; }
+@keyframes boot-reticle-in {
+  from { opacity: 0; transform: scale(0.55) rotate(-45deg); }
+  to   { opacity: 1; transform: none; }
+}
+.boot-ring-slow { transform-origin: center; animation: spin 9s linear infinite; }
+.boot-ring-fast { transform-origin: center; animation: spin 3.5s linear infinite reverse; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.boot-wordmark {
+  animation: boot-word 1s cubic-bezier(0.2, 0.9, 0.2, 1) both;
+  animation-delay: 0.25s;
+}
+@keyframes boot-word {
+  0%   { opacity: 0; letter-spacing: 1.1em; filter: blur(9px); }
+  100% { opacity: 1; letter-spacing: 0.34em; filter: none; }
+}
+
+.boot-line {
+  animation: boot-line-in 0.32s ease both;
+}
+@keyframes boot-line-in {
+  from { opacity: 0; transform: translateX(-10px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.boot-bar-fill {
+  transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  background: linear-gradient(90deg, var(--hud-cyan-dim), var(--hud-cyan));
+  box-shadow: 0 0 14px rgba(34, 211, 238, 0.8);
+}
+
+.boot-flash { animation: boot-flash 0.5s ease both; }
+@keyframes boot-flash {
+  0%   { opacity: 0; transform: scale(0.94); filter: brightness(3); }
+  40%  { opacity: 1; filter: brightness(2.2); }
+  100% { opacity: 1; transform: none; filter: none; }
+}
+
+/* ---------- Gauges / graphs ------------------------------------- */
+
+@keyframes gauge-trail {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 0.9; }
+}
+.gauge-trail { animation: gauge-trail 2.6s ease-in-out infinite; }
+
+.gauge-ring-spin {
+  transform-origin: center;
+  animation: spin 22s linear infinite;
+}
+
+@keyframes graph-draw {
+  from { stroke-dashoffset: var(--len, 1000); }
+  to { stroke-dashoffset: 0; }
+}
+.graph-draw { animation: graph-draw 1.1s cubic-bezier(0.4, 0, 0.2, 1) both; }
+
+@keyframes graph-head {
+  0%, 100% { r: 2.6; opacity: 1; }
+  50% { r: 4.2; opacity: 0.55; }
+}
+.graph-head { animation: graph-head 1.8s ease-in-out infinite; }
+
+/* ---------- Cockpit composition --------------------------------- */
+
+/* Clusters frame the core. Single column on narrow screens with the core
+   hoisted to the top; three columns from xl up. */
+.cockpit {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.25rem;
+  align-items: start;
+  padding-top: 0.35rem;
+  position: relative;
+}
+@media (min-width: 1280px) {
+  .cockpit {
+    grid-template-columns: minmax(0, 1fr) minmax(430px, 1.05fr) minmax(0, 1fr);
+    gap: 1.75rem;
+  }
+}
+
+.cockpit-core {
+  order: -1; /* core leads on narrow screens */
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+}
+@media (min-width: 1280px) {
+  .cockpit-core {
+    order: 0;
+    position: sticky;
+    top: 0.75rem;
+  }
+}
+
+.cockpit-side {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+}
+
+/* Panels angle inward, facing the core; straighten on hover to be read. */
+.orbit-slot { transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1); }
+@media (min-width: 1280px) {
+  .orbit-left .orbit-slot { transform: perspective(1600px) rotateY(7deg); }
+  .orbit-right .orbit-slot { transform: perspective(1600px) rotateY(-7deg); }
+  .orbit-left .orbit-slot:hover,
+  .orbit-right .orbit-slot:hover { transform: perspective(1600px) rotateY(0deg); }
+}
+
+/* Energy conduits from core to clusters.
+   Anchored so the paths' origin (500,280 in a 1000x560 viewBox) sits exactly
+   on the orb's centre: the band is half an orb tall, offset by the cockpit's
+   top padding, then pulled up by half its own height. Stretching this across
+   the full cockpit height instead made the curves converge on the console
+   label rather than the core.
+   z-index 0 keeps it behind both clusters (z-index 1) and the core (2), and
+   the mask fades the traffic out before it reaches panel text. */
+.orbit-links {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 560px;
+  top: calc(0.35rem + (var(--orb-size) / 2));
+  transform: translateY(-50%);
+  pointer-events: none;
+  z-index: 0;
+  overflow: visible;
+  -webkit-mask-image: radial-gradient(ellipse 48% 62% at 50% 50%, black 20%, rgba(0, 0, 0, 0.5) 54%, transparent 84%);
+  mask-image: radial-gradient(ellipse 48% 62% at 50% 50%, black 20%, rgba(0, 0, 0, 0.5) 54%, transparent 84%);
+}
+/* Static wire */
+.conduit {
+  stroke: #22d3ee;
+  stroke-width: 1;
+  stroke-opacity: 0.2;
+  stroke-dasharray: 0.6 2.4;
+  transition: stroke-opacity 0.3s ease;
+}
+
+/* Traffic. Paths carry pathLength="100", so these dash values are percentages
+   of each curve regardless of its real length: three packets, evenly spaced. */
+.conduit-packet {
+  stroke: var(--hud-cyan);
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-dasharray: 2 31.33;
+  filter: drop-shadow(0 0 5px var(--hud-cyan));
+  opacity: 0.85;
+  animation: packet-out calc(2.6s - (var(--sys-load) * 1.1s)) linear infinite;
+  transition: stroke-width 0.3s ease, opacity 0.3s ease, filter 0.3s ease;
+}
+@keyframes packet-out { to { stroke-dashoffset: -33.33; } }
+
+.conduit-packet-in {
+  stroke: var(--hud-amber);
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-dasharray: 1.5 47;
+  filter: drop-shadow(0 0 5px var(--hud-amber));
+  opacity: 0.55;
+  animation: packet-in calc(3.8s - (var(--sys-load) * 1.2s)) linear infinite;
+  transition: stroke-width 0.3s ease, opacity 0.3s ease;
+}
+@keyframes packet-in { to { stroke-dashoffset: 48.5; } }
+
+/* Fresh poll landed — brief surge down every wire. */
+html[data-surge="1"] .conduit { stroke-opacity: 0.45; }
+html[data-surge="1"] .conduit-packet {
+  opacity: 1;
+  stroke-width: 3.4;
+  filter: drop-shadow(0 0 11px var(--hud-cyan));
+}
+html[data-surge="1"] .conduit-packet-in { opacity: 0.85; }
+
+/* ---------- Command bar ----------------------------------------- */
+
+.command-bar { position: relative; }
+.cmd-chip {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: rgba(34, 211, 238, 0.75);
+  border: 1px solid rgba(34, 211, 238, 0.25);
+  border-radius: 3px;
+  padding: 3px 8px;
+  background: rgba(34, 211, 238, 0.05);
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+.cmd-chip:hover {
+  background: rgba(34, 211, 238, 0.16);
+  border-color: rgba(34, 211, 238, 0.55);
+  color: #a5f3fc;
+}
+
+/* ---------- Expandable container rows --------------------------- */
+
+.row-caret {
+  display: inline-block;
+  font-size: 9px;
+  transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.row-caret.is-open { transform: rotate(90deg); }
+
+.row-detail {
+  animation: row-open 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+  border-top: 1px solid rgba(34, 211, 238, 0.08);
+}
+@keyframes row-open {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Curved divider under the header */
+.hud-arc-wrap { width: 100%; height: 26px; }
+.hud-arc { display: block; width: 100%; height: 26px; }
+
+/* ---------- Sol core orb ---------------------------------------- */
+
+.sol-orb {
+  --orb-spin: 26s;
+  --orb-spin-alt: 17s;
+  --orb-pulse: 3.6s;
+  --orb-hue: #22d3ee;
+  --orb-accent: #fbbf24;
+  --orb-glow: 0.55;
+  --orb-ease: linear;
+
+  position: relative;
+  width: 100%;
+  filter: drop-shadow(0 0 36px rgba(34, 211, 238, calc(0.16 + var(--orb-glow) * 0.34)));
+  transition: filter 0.8s ease;
+}
+.sol-orb[data-state="thinking"] {
+  --orb-spin: 5.5s; --orb-spin-alt: 3.1s; --orb-pulse: 0.85s; --orb-glow: 1;
+}
+.sol-orb[data-state="speaking"] {
+  --orb-spin: 11s; --orb-spin-alt: 6.5s; --orb-pulse: 0.5s; --orb-glow: 0.85;
+}
+.sol-orb[data-state="error"] {
+  --orb-hue: #f43f5e;
+  --orb-spin: 34s; --orb-spin-alt: 26s; --orb-pulse: 2.6s; --orb-glow: 0.3;
+  --orb-ease: steps(11, end); /* rings stutter instead of gliding */
+}
+
+/* Colour is applied through CSS, never through SVG presentation attributes —
+   var() is not supported in those. */
+.orb-line { stroke: var(--orb-hue); transition: stroke 0.7s ease; }
+.orb-accent-line { stroke: var(--orb-accent); transition: stroke 0.7s ease; }
+.orb-stop-hue { stop-color: var(--orb-hue); }
+.orb-mote { fill: var(--orb-hue); }
+.orb-lit,
+.orb-mote { filter: drop-shadow(0 0 5px var(--orb-hue)); }
+
+.orb-spin      { transform-origin: 200px 200px; animation: spin var(--orb-spin) var(--orb-ease) infinite; }
+.orb-spin-rev  { transform-origin: 200px 200px; animation: spin var(--orb-spin-alt) var(--orb-ease) infinite reverse; }
+.orb-spin-slow { transform-origin: 200px 200px; animation: spin calc(var(--orb-spin) * 2.6) linear infinite; }
+
+.orb-core  { transform-origin: 200px 200px; animation: orb-core-pulse var(--orb-pulse) ease-in-out infinite; }
+.orb-shell { transform-origin: 200px 200px; animation: orb-shell-pulse calc(var(--orb-pulse) * 1.7) ease-in-out infinite; }
+
+@keyframes orb-core-pulse {
+  0%, 100% { opacity: calc(0.72 + var(--orb-glow) * 0.28); transform: scale(1); }
+  50%      { opacity: 1; transform: scale(1.05); }
+}
+@keyframes orb-shell-pulse {
+  0%, 100% { opacity: 0.28; transform: scale(1); }
+  50%      { opacity: 0.6; transform: scale(1.08); }
+}
+
+.orb-caption { text-shadow: 0 0 14px rgba(34, 211, 238, 0.55); }
+.orb-status { color: var(--orb-hue); opacity: 0.8; transition: color 0.7s ease; }
+.orb-status-dot { background: var(--orb-hue); box-shadow: 0 0 6px var(--orb-hue); }
+
+/* ---------- Esports / broadcast ---------------------------------- */
+
+/* Live scoreboard tiles get a hotter frame than a resting panel. */
+.score-tile { transition: border-color 0.3s ease, box-shadow 0.3s ease; }
+.score-tile.is-live {
+  border-color: rgba(244, 63, 94, 0.35);
+  box-shadow:
+    inset 0 0 26px rgba(244, 63, 94, 0.07),
+    0 0 26px rgba(244, 63, 94, 0.12),
+    0 10px 30px rgba(0, 0, 0, 0.45);
+}
+.score-tile.is-live::before { background-image: none; }
+.score-tile.is-live:hover {
+  border-color: rgba(244, 63, 94, 0.55);
+  box-shadow:
+    inset 0 0 30px rgba(244, 63, 94, 0.1),
+    0 0 38px rgba(244, 63, 94, 0.2),
+    0 14px 38px rgba(0, 0, 0, 0.5);
+}
+
+/* Backend selector (Sol / Claude) */
+.backend-seg {
+  display: inline-flex;
+  border: 1px solid rgba(34, 211, 238, 0.25);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.backend-opt {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  padding: 3px 10px;
+  color: rgba(34, 211, 238, 0.5);
+  background: transparent;
+  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+.backend-opt:hover { color: rgba(165, 243, 252, 0.85); background: rgba(34, 211, 238, 0.08); }
+.backend-opt.is-active {
+  color: #a5f3fc;
+  background: rgba(34, 211, 238, 0.18);
+  box-shadow: inset 0 0 12px rgba(34, 211, 238, 0.28);
+  text-shadow: 0 0 8px rgba(34, 211, 238, 0.7);
+}
+
+/* Core console beneath the orb */
+.core-console { width: min(100%, 460px); }
+.core-console-log {
+  max-height: 26vh;
+  min-height: 88px;
+  overflow-y: auto;
+}
+
+/* ---------- Reduced motion -------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .hud-grid,
+  .hud-aurora,
+  .hud-horizon,
+  .live-pulse,
+  .ticker-track,
+  .gauge-trail,
+  .gauge-ring-spin,
+  .graph-draw,
+  .graph-head,
+  .boot-ring-slow,
+  .boot-ring-fast,
+  .hud-panel::after,
+  .conduit,
+  .conduit-packet,
+  .conduit-packet-in,
+  .row-detail,
+  .orb-spin,
+  .orb-spin-rev,
+  .orb-spin-slow,
+  .orb-core,
+  .orb-shell {
+    animation: none;
+  }
+  /* The core settles into a calm, fully-formed state rather than vanishing. */
+  .orb-shell { opacity: 0.45; }
+  /* Conduits keep their packets, but parked rather than streaming. */
+  .conduit-packet,
+  .conduit-packet-in { opacity: 0.5; }
+  .row-caret { transition: none; }
+  .orbit-left .orbit-slot,
+  .orbit-right .orbit-slot,
+  .orbit-left .orbit-slot:hover,
+  .orbit-right .orbit-slot:hover {
+    transform: none;
+    transition: none;
+  }
+  /* Panels appear immediately, at rest, with no pointer drift. */
+  .power-on,
+  html[data-boot="active"] .power-on {
+    animation: none;
+    opacity: 1;
+  }
+  .hud-panel,
+  .hud-grid,
+  .hud-depth-far {
+    transform: none;
+    transition: none;
+  }
+  /* Boot is skipped outright for reduced motion — never rendered. */
+  .boot-overlay { display: none; }
+}
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-thumb { background: rgba(34, 211, 238, 0.3); border-radius: 3px; }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* Ranked-table rating bar, sitting behind the row content. */
+.rank-bar {
+  background: linear-gradient(90deg, rgba(34, 211, 238, 0.16), rgba(34, 211, 238, 0.02));
+  transition: width 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* The esports wire runs slower than the system vitals marquee so the two
+   moving strips don't compete for attention. */
+.ticker-slow { animation-duration: 55s; }
+
+/* ---------- Voice controls -------------------------------------- */
+
+.voice-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 8.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  padding: 3px 8px;
+  border-radius: 3px;
+  border: 1px solid rgba(34, 211, 238, 0.2);
+  color: rgba(148, 163, 184, 0.75);
+  background: transparent;
+  transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+}
+.voice-toggle:hover { border-color: rgba(34, 211, 238, 0.45); color: #a5f3fc; }
+.voice-toggle.is-on {
+  color: #a5f3fc;
+  border-color: rgba(34, 211, 238, 0.5);
+  background: rgba(34, 211, 238, 0.1);
+  text-shadow: 0 0 8px rgba(34, 211, 238, 0.6);
+}
+
+.mic-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  border-radius: 3px;
+  border: 1px solid rgba(34, 211, 238, 0.3);
+  background: rgba(34, 211, 238, 0.06);
+  color: rgba(165, 243, 252, 0.85);
+  transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+  flex-shrink: 0;
+}
+.mic-btn:hover:not(:disabled) {
+  border-color: rgba(34, 211, 238, 0.6);
+  background: rgba(34, 211, 238, 0.16);
+}
+/* Deliberately dormant under HTTP — reads as "not yet", not "broken". */
+.mic-btn.is-gated,
+.mic-btn:disabled {
+  opacity: 0.32;
+  cursor: not-allowed;
+  border-style: dashed;
+}
+.mic-btn.is-listening {
+  border-color: rgba(244, 63, 94, 0.7);
+  background: rgba(244, 63, 94, 0.15);
+  color: #fda4af;
+  animation: live-pulse 1.2s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .mic-btn.is-listening { animation: none; }
+}
+
+/* ---------- Sol stats page -------------------------------------- */
+
+.sol-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+  align-items: start;
+  padding-top: 0.35rem;
+}
+@media (min-width: 1024px) {
+  .sol-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (min-width: 1600px) {
+  .sol-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sol-span-2 { grid-column: span 2; }
+}
+@media (min-width: 1024px) and (max-width: 1599px) {
+  .sol-span-2 { grid-column: span 2; }
+}
+
+/* Chart transitions, gated with everything else below. */
+.donut-seg { transition: stroke-dasharray 0.8s cubic-bezier(0.22, 1, 0.36, 1); }
+.bar-fill { transition: width 0.7s cubic-bezier(0.22, 1, 0.36, 1), height 0.7s cubic-bezier(0.22, 1, 0.36, 1); }
+
+@media (prefers-reduced-motion: reduce) {
+  .donut-seg, .bar-fill { transition: none; }
+}
+
+/* Accent variant of the command-bar chip — used for the Sol stats link. */
+.cmd-chip.is-accent {
+  border-color: rgba(251, 191, 36, 0.4);
+  color: rgba(253, 230, 138, 0.9);
+  background: rgba(251, 191, 36, 0.08);
+}
+.cmd-chip.is-accent:hover {
+  border-color: rgba(251, 191, 36, 0.7);
+  background: rgba(251, 191, 36, 0.18);
+  color: #fde68a;
+}
+
+/* ---------- Orb voice spectrum ---------------------------------- */
+
+.orb-spectrum line {
+  stroke: var(--orb-hue);
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  opacity: 0;
+  filter: drop-shadow(0 0 4px var(--orb-hue));
+  transition: opacity 0.25s ease;
+}
+
+/* While the analyser is driving the core, CSS must not also animate the same
+   transforms — the JS writes inline transform/opacity each frame. */
+.sol-orb.is-visualising .orb-core,
+.sol-orb.is-visualising .orb-shell {
+  animation: none;
+}
+/* The bars change every frame; a transition would smear them. */
+.sol-orb.is-visualising .orb-spectrum line {
+  transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .orb-spectrum line { transition: none; filter: none; }
+}

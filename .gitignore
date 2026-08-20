@@ -1,0 +1,15 @@
+# secrets — NEVER commit
+.env.local
+.env
+
+# dependencies & build
+node_modules/
+.next/
+out/
+
+# screenshots from the browser tool
+shots/
+
+# logs, os junk
+*.log
+.DS_Store

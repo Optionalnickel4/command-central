@@ -1,0 +1,34 @@
+FIRST, the quick fix: add export const dynamic = "force-dynamic" to every route under app/api/widgets/*/route.ts (and app/api/chat if applicable), so live data stops freezing at build time. Then the redesign below.
+
+THE PROBLEM WITH PHASE 1: you added effects (boot seq, glow, parallax) on top of the SAME three-row layout, so it reads as "same dashboard, more shimmer." This phase is NOT more effects. It's a COMPOSITION rebuild. Change the layout and the information hierarchy, not just the styling.
+
+TARGET LOOK: Iron Man / JARVIS.
+
+Palette: arc-reactor cyan + gold accents on near-black. Thin, precise lines. Concentric circular HUD rings, rotating arcs, tick marks, targeting reticles.
+The feel is INSTRUMENTATION: everything looks like a readout on a holographic interface, arranged radially, not stacked in rectangles.
+
+THE CENTERPIECE — a central AI ORB representing Sol:
+
+A large, animated orb/core in the CENTER of the screen — layered rotating rings, a glowing pulsing core, particle/energy shells. This is the hero; it dominates the composition.
+It REACTS to Sol's state:
+Idle/online: slow calm pulse, steady rotation.
+Thinking (a chat request in flight): spins up, brightens, rings accelerate.
+Speaking/replying: pulses in time with the reply arriving.
+Error/unreachable (e.g. Sol down): dims to amber/red, rings stutter.
+Build it with SVG/CSS/canvas — no heavy 3D lib required, but if you want depth a lightweight approach is fine. Must respect prefers-reduced-motion (calm static state).
+The existing Sol chat (SSH path — DO NOT CHANGE the transport) wires into this: typing to Sol drives the orb's "thinking/speaking" states.
+
+LAYOUT — rebuild around the orb:
+
+Orb centered. Data panels arranged AROUND it — think radial/orbital placement or a left-cluster / right-cluster framing the core, not a flat grid.
+Homelab gauges, general info, esports (later), Sol status (later) become satellites around the core. Curved dividers, angled panels, connecting lines from the core to panels are all encouraged.
+Keep it a single cohesive "cockpit" screen. It's OK for it to be dense.
+
+HARD CONSTRAINTS (unchanged from CLAUDE.md):
+
+Do NOT change any data logic, API routes' behavior, the Proxmox https fetch, or the SSH-to-Sol transport. This is presentation only.
+Preserve the widget-registry pattern — panels still come from the registry; you're changing how they're PLACED and STYLED, not how they're fed.
+Keep prefers-reduced-motion gating.
+After building: npm run build, sudo systemctl restart command-central, verify homelab API still returns live data and the site serves 200.
+
+Build the orb + new layout, get it rendering, then STOP so I can look before any further phases. This is the make-or-break visual pass — go bold and distinctive.
