@@ -17,6 +17,8 @@ export interface SolSession {
   totalTokens: number;
   contextTokens: number | null;
   updatedAt: number | null;
+  /** Session start, for ordering the historical usage series. */
+  sessionStartedAt: number | null;
   ageMs: number | null;
   abortedLastRun: boolean;
 }
@@ -65,6 +67,7 @@ export async function GET() {
       totalTokens: num(s.totalTokens),
       contextTokens: typeof s.contextTokens === "number" ? s.contextTokens : null,
       updatedAt: typeof s.updatedAt === "number" ? s.updatedAt : null,
+      sessionStartedAt: typeof s.sessionStartedAt === "number" ? s.sessionStartedAt : null,
       ageMs: typeof s.ageMs === "number" ? s.ageMs : null,
       abortedLastRun: Boolean(s.abortedLastRun)
     })).sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0));

@@ -13,3 +13,6 @@ shots/
 # logs, os junk
 *.log
 .DS_Store
+
+# runtime usage log (not code)
+data/

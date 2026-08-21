@@ -134,6 +134,107 @@ export function BarRows({
   );
 }
 
+/** Two-part stacked columns, e.g. input vs output tokens per turn. */
+export function StackedBars({
+  rows, height = 96, colors = ["#22d3ee", "#fbbf24"], labels = ["a", "b"], unit = ""
+}: {
+  rows: { a: number; b: number; title?: string }[];
+  height?: number;
+  colors?: [string, string] | string[];
+  labels?: string[];
+  unit?: string;
+}) {
+  if (rows.length === 0)
+    return <p className="font-mono text-[10.5px] text-slate-500">No turns recorded yet.</p>;
+  const max = Math.max(...rows.map((r) => r.a + r.b), 1);
+
+  return (
+    <div>
+      {/* Bars are capped in width and left-aligned: with only a handful of
+          turns, full-flex columns become meaningless full-panel slabs. */}
+      <div className="flex items-end gap-[2px] justify-start" style={{ height }}>
+        {rows.map((r, i) => (
+          <div
+            key={i}
+            className="flex-1 flex flex-col justify-end min-w-0 h-full"
+            style={{ maxWidth: 26 }}
+            title={r.title ?? `${labels[0]} ${r.a}${unit} · ${labels[1]} ${r.b}${unit}`}
+          >
+            <span className="block w-full bar-fill" style={{
+              height: `${(r.b / max) * 100}%`, background: colors[1], opacity: 0.9
+            }} />
+            <span className="block w-full bar-fill" style={{
+              height: `${(r.a / max) * 100}%`, background: colors[0],
+              boxShadow: `0 0 5px ${colors[0]}55`
+            }} />
+          </div>
+        ))}
+      </div>
+      <div className="flex flex-wrap gap-x-3 mt-2">
+        {labels.map((l, i) => (
+          <span key={l} className="flex items-center gap-1.5 font-mono text-[9px] text-slate-500">
+            <span className="h-1.5 w-1.5 rounded-sm" style={{ background: colors[i] }} />
+            {l}
+          </span>
+        ))}
+        <span className="font-mono text-[9px] text-slate-600 ml-auto">peak {max.toLocaleString()}{unit}</span>
+      </div>
+    </div>
+  );
+}
+
+/** Simple line/area series with min-max labels — latency, context growth, … */
+export function LineSeries({
+  points, height = 84, color = "#22d3ee", unit = "", label
+}: {
+  points: number[];
+  height?: number;
+  color?: string;
+  unit?: string;
+  label?: string;
+}) {
+  if (points.length < 2)
+    return <p className="font-mono text-[10.5px] text-slate-500">Not enough turns yet.</p>;
+
+  const W = 100;
+  const H = 32;
+  const max = Math.max(...points);
+  const min = Math.min(...points);
+  const span = max - min || 1;
+  const x = (i: number) => (i / (points.length - 1)) * W;
+  const y = (v: number) => H - ((v - min) / span) * H;
+
+  let d = `M${x(0)},${y(points[0])}`;
+  for (let i = 1; i < points.length; i++) {
+    const mid = (x(i - 1) + x(i)) / 2;
+    d += ` C${mid},${y(points[i - 1])} ${mid},${y(points[i])} ${x(i)},${y(points[i])}`;
+  }
+
+  return (
+    <div>
+      <div className="flex items-baseline justify-between mb-1">
+        {label && <span className="font-mono text-[9px] uppercase tracking-[0.22em] text-slate-500">{label}</span>}
+        <span className="font-mono text-[10px] tabular-nums" style={{ color }}>
+          {Math.round(points[points.length - 1]).toLocaleString()}{unit}
+        </span>
+      </div>
+      <div style={{ height }}>
+        <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="w-full h-full overflow-visible" aria-hidden="true">
+          <path d={`${d} L${W},${H} L0,${H} Z`} fill={color} fillOpacity="0.14" />
+          <path d={d} fill="none" stroke={color} strokeWidth="1.6"
+                vectorEffect="non-scaling-stroke" strokeLinecap="round"
+                style={{ filter: `drop-shadow(0 0 3px ${color})` }} />
+        </svg>
+      </div>
+      <div className="flex justify-between font-mono text-[8.5px] text-slate-600 mt-1">
+        <span>min {Math.round(min).toLocaleString()}{unit}</span>
+        <span>{points.length} turns</span>
+        <span>max {Math.round(max).toLocaleString()}{unit}</span>
+      </div>
+    </div>
+  );
+}
+
 /** Stacked columns over time — one column per bucket. */
 export function TimelineChart({
   buckets, height = 90

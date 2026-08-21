@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { execFile } from "child_process";
+import { extractSolUsage, recordTurn, type UsageTurn } from "@/lib/usage-log";
 
 /**
  * Two assistant backends behind one interface. Both resolve to the same
@@ -26,7 +27,13 @@ const OPENCLAW_KEY = process.env.OPENCLAW_SSH_KEY || "/root/.ssh/openclaw_agent"
 const TIMEOUT_MS = 120000;
 const MAX_BUFFER = 1024 * 1024;
 
-function runSol(message: string): Promise<string> {
+/** Reply text plus the numeric usage meta from the same --json payload. */
+interface SolResult {
+  text: string;
+  usage: Partial<UsageTurn>;
+}
+
+function runSol(message: string): Promise<SolResult> {
   return new Promise((resolve, reject) => {
     execFile(
       "ssh",
@@ -42,8 +49,23 @@ function runSol(message: string): Promise<string> {
         if (err) return reject(err);
         try {
           const parsed = JSON.parse(stdout);
-          const text = parsed?.result?.payloads?.map((p: { text?: string }) => p.text).filter(Boolean).join("\n");
-          resolve(text || "(no reply)");
+          // EVERY payload, in order, joined — never payloads[0] alone and never
+          // split on sentences. Only the ends are trimmed, never mid-content.
+          //
+          // NOTE: short one-word answers here are NOT a parser fault. The
+          // cc-agent forced command on 152 is `cc-agent $SSH_ORIGINAL_COMMAND`,
+          // which the remote shell word-splits; if that wrapper forwards only
+          // $1, Sol is asked just the first word and genuinely replies to it.
+          // Verified: "In two sentences, what is ZFS?" arrives as "In".
+          const payloads = Array.isArray(parsed?.result?.payloads) ? parsed.result.payloads : [];
+          const text = payloads
+            .map((p: { text?: string }) => (typeof p?.text === "string" ? p.text : ""))
+            .filter(Boolean)
+            .join("\n")
+            .trim();
+          // Same payload, no extra call and no change to the transport — just
+          // reading the numeric meta that was already coming back.
+          resolve({ text: text || "(no reply)", usage: extractSolUsage(parsed) });
         } catch {
           reject(new Error("Could not parse agent output"));
         }
@@ -90,11 +112,49 @@ export async function POST(req: Request) {
   const last = [...messages].reverse().find((m: { role: string }) => m.role === "user");
   if (!last) return NextResponse.json({ reply: "", backend: chosen });
 
+  const startedAt = Date.now();
   try {
-    const reply = chosen === "sol" ? await runSol(last.content) : await runClaude(last.content);
+    let reply: string;
+    let usage: Partial<UsageTurn> = {};
+
+    if (chosen === "sol") {
+      const result = await runSol(last.content);
+      reply = result.text;
+      usage = result.usage;
+    } else {
+      reply = await runClaude(last.content);
+      // The Claude CLI reports no token meta; latency is still worth recording.
+      usage = { durationMs: Date.now() - startedAt, model: "claude-code", provider: "anthropic" };
+    }
+
+    // Fire-and-forget: usage logging must never delay or break a reply.
+    void recordTurn({
+      ts: Date.now(),
+      backend: chosen,
+      ok: true,
+      durationMs: usage.durationMs ?? Date.now() - startedAt,
+      model: usage.model ?? null,
+      provider: usage.provider ?? null,
+      sessionId: usage.sessionId ?? null,
+      inputTokens: usage.inputTokens ?? null,
+      outputTokens: usage.outputTokens ?? null,
+      totalTokens: usage.totalTokens ?? null,
+      contextTokens: usage.contextTokens ?? null,
+      cacheRead: usage.cacheRead ?? null,
+      cacheWrite: usage.cacheWrite ?? null,
+      promptTokens: usage.promptTokens ?? null
+    });
+
     return NextResponse.json({ reply, backend: chosen });
   } catch (err) {
     console.error(`agent call failed (${chosen}):`, err instanceof Error ? err.message : err);
+    void recordTurn({
+      ts: Date.now(), backend: chosen, ok: false,
+      durationMs: Date.now() - startedAt,
+      model: null, provider: null, sessionId: null,
+      inputTokens: null, outputTokens: null, totalTokens: null,
+      contextTokens: null, cacheRead: null, cacheWrite: null, promptTokens: null
+    });
     return NextResponse.json({ reply: FAILURE_MESSAGE[chosen], backend: chosen });
   }
 }

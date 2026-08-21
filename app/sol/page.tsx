@@ -2,13 +2,7 @@ import Link from "next/link";
 import BootRelease from "@/components/boot-release";
 import ParallaxRoot from "@/components/parallax-root";
 import TickerClock from "@/components/ticker-clock";
-import {
-  ActivityPanel,
-  CapabilityPanel,
-  OverviewPanel,
-  SessionsPanel,
-  TasksPanel
-} from "@/components/sol/panels";
+import SolTabs from "@/components/sol/sol-tabs";
 
 export const metadata = {
   title: "Sol · OpenClaw stats"
@@ -72,23 +66,8 @@ export default function SolStatsPage() {
         </div>
 
         {/* Each panel fetches and degrades independently. */}
-        <div className="sol-grid flex-1 pb-4">
-          <div className="power-on sol-span-2" style={{ ["--i" as string]: 0 }}>
-            <OverviewPanel />
-          </div>
-          <div className="power-on" style={{ ["--i" as string]: 1 }}>
-            <TasksPanel />
-          </div>
-          <div className="power-on" style={{ ["--i" as string]: 2 }}>
-            <CapabilityPanel />
-          </div>
-          <div className="power-on sol-span-2" style={{ ["--i" as string]: 3 }}>
-            <SessionsPanel />
-          </div>
-          <div className="power-on sol-span-2" style={{ ["--i" as string]: 4 }}>
-            <ActivityPanel />
-          </div>
-        </div>
+        <SolTabs />
+
       </main>
 
       <div className="hud-vignette" />
