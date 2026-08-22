@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { execFile } from "child_process";
 import { extractSolUsage, recordTurn, type UsageTurn } from "@/lib/usage-log";
+import { withContext } from "@/lib/context-snapshot";
+import {
+  PREPASS_PROMPT, looksLikeEsports, parseIntent, parsePrepass, performLookup
+} from "@/lib/lookup-intent";
 
 /**
  * Two assistant backends behind one interface. Both resolve to the same
@@ -114,15 +118,54 @@ export async function POST(req: Request) {
 
   const startedAt = Date.now();
   try {
+    // Give whichever backend is active a compact live view of the dashboard, so
+    // it can answer about containers/esports/its own stats instead of declining.
+    // A failing source degrades to "unavailable" inside the snapshot; it never
+    // blocks the turn.
+    // ONE bounded esports lookup per turn: decide what (if anything) to fetch,
+    // fetch it, and attach the result so the model answers from real data.
+    // Keyword parse first (free); only an esports-shaped question that it can't
+    // classify pays for a cheap JSON pre-pass through the active backend.
+    let intent = parseIntent(last.content);
+    if (intent.kind === "none" && looksLikeEsports(last.content)) {
+      try {
+        const probe =
+          chosen === "sol"
+            ? (await runSol(PREPASS_PROMPT(last.content))).text
+            : await runClaude(PREPASS_PROMPT(last.content));
+        intent = parsePrepass(probe);
+      } catch {
+        /* pre-pass is best-effort; fall through with no lookup */
+      }
+    }
+    const lookup = await performLookup(intent).catch(() => null);
+    if (lookup) {
+      console.log(`chat lookup: ${intent.kind}("${intent.query}") via ${intent.via} -> found=${lookup.found}`);
+    }
+
+    const base = await withContext(last.content).catch(() => last.content);
+    const prompt = lookup
+      ? [
+          base,
+          "",
+          `[ESPORTS LOOKUP — live vlr-api result for this question]`,
+          lookup.text,
+          "[END LOOKUP]",
+          lookup.found
+            ? "Answer using this lookup data."
+            : "The lookup found nothing — say so plainly; do not invent a result."
+        ].join("\n")
+      : base;
+
     let reply: string;
     let usage: Partial<UsageTurn> = {};
 
     if (chosen === "sol") {
-      const result = await runSol(last.content);
+      const result = await runSol(prompt);
       reply = result.text;
       usage = result.usage;
     } else {
-      reply = await runClaude(last.content);
+      reply = await runClaude(prompt);
       // The Claude CLI reports no token meta; latency is still worth recording.
       usage = { durationMs: Date.now() - startedAt, model: "claude-code", provider: "anthropic" };
     }
