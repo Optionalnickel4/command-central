@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useWidgetData } from "@/lib/fetcher";
 import type { EsportsStatsData } from "@/app/api/widgets/esports/stats/route";
 import FeedOffline from "./feed-offline";
@@ -55,10 +56,11 @@ export default function EsportsStats() {
             <span className="w-10 text-right">K/D</span>
           </div>
 
-          {players.map((p, i) => (
+          {players.map((p, i) => {
+            const row = (
             <div
               key={`${p.playerId ?? p.player}-${i}`}
-              className="flex items-center gap-2 py-1.5 border-b border-cyan-500/5"
+              className={`flex items-center gap-2 py-1.5 border-b border-cyan-500/5 ${p.playerId ? "player-row" : ""}`}
             >
               <span className={`font-mono text-[11px] tabular-nums w-4 shrink-0 ${i < 3 ? "hud-glow-text" : "text-slate-500"}`}>
                 {i + 1}
@@ -84,7 +86,15 @@ export default function EsportsStats() {
                 {p.kd?.toFixed(2) ?? "—"}
               </span>
             </div>
-          ))}
+            );
+            // Rows carry player_id straight from the feed, so no search hop.
+            return p.playerId ? (
+              <Link key={`${p.playerId}-${i}`} href={`/esports/player/${p.playerId}`}
+                    className="block" aria-label={`Open ${p.player} detail`}>
+                {row}
+              </Link>
+            ) : row;
+          })}
         </div>
       )}
     </div>
