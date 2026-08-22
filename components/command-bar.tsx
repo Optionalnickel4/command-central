@@ -132,6 +132,9 @@ export default function CommandBar() {
         <Link href="/sol" className="cmd-chip is-accent" aria-label="Open Sol stats page">
           Sol Stats →
         </Link>
+        <Link href="/media" className="cmd-chip is-accent" aria-label="Open media stack page">
+          Media →
+        </Link>
       </div>
 
       {/* Command input — routes to Sol */}
