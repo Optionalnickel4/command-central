@@ -101,8 +101,11 @@ function runClaude(message: string): Promise<string> {
   });
 }
 
+const BACKEND_NAME: Record<AssistantBackend, string> = { sol: "Sol", claude: "Claude" };
+
+/** Only used when the failure carried no readable detail at all. */
 const FAILURE_MESSAGE: Record<AssistantBackend, string> = {
-  sol: "◇ Link to OpenClaw unavailable. Check gateway URL / token.",
+  sol: "◇ Link to OpenClaw unavailable — no response from the agent on 10.0.0.152.",
   claude: "◇ Claude backend unavailable. Check the claude CLI login on this box."
 };
 
@@ -191,6 +194,15 @@ export async function POST(req: Request) {
     return NextResponse.json({ reply, backend: chosen });
   } catch (err) {
     console.error(`agent call failed (${chosen}):`, err instanceof Error ? err.message : err);
+    // The backend's OWN last line, surfaced to the panel. execFile puts the
+    // remote stderr at the end of err.message, after a full echo of the command
+    // (which for Sol includes the whole context snapshot) — so the diagnosable
+    // part is the last non-empty line, not the first. Without this the panel
+    // showed a generic "check gateway URL / token" for every failure, which
+    // pointed at the wrong box during the retired-credential outage.
+    const detail = err instanceof Error
+      ? err.message.split("\n").map(l => l.trim()).filter(Boolean).pop() ?? ""
+      : "";
     void recordTurn({
       ts: Date.now(), backend: chosen, ok: false,
       durationMs: Date.now() - startedAt,
@@ -198,6 +210,9 @@ export async function POST(req: Request) {
       inputTokens: null, outputTokens: null, totalTokens: null,
       contextTokens: null, cacheRead: null, cacheWrite: null, promptTokens: null
     });
-    return NextResponse.json({ reply: FAILURE_MESSAGE[chosen], backend: chosen });
+    return NextResponse.json({
+      reply: detail ? `◇ ${BACKEND_NAME[chosen]} replied with an error: ${detail}` : FAILURE_MESSAGE[chosen],
+      backend: chosen
+    });
   }
 }
