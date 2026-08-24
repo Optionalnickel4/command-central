@@ -1,0 +1,39 @@
+#!/bin/sh
+# cc-projects — read-only PROJECTS.md reader for the Command Central dashboard.
+#
+# INSTALL ON LXC 152 (10.0.0.152) as /usr/local/bin/cc-projects, mode 0755, root-owned.
+#
+# Invoked via an authorized_keys forced command:
+#   command="/usr/local/bin/cc-projects $SSH_ORIGINAL_COMMAND",no-port-forwarding,...
+#
+# SECURITY MODEL — the allowlist is the whole thing:
+#   * Only the first argument is ever read, and exactly ONE keyword matches.
+#   * No user-supplied text ever reaches `cat`. The single branch execs a FIXED
+#     argv against a FIXED absolute path, so no other file is reachable and no
+#     flags or extra words can be appended.
+#   * Anything else — a different path, a bare shell, extra words, empty input —
+#     is denied with exit 1.
+#
+# Note on shell safety: sshd expands $SSH_ORIGINAL_COMMAND as a variable, so
+# metacharacters in it are word-split but never re-parsed as shell syntax.
+# `projects; rm -rf /` arrives as the literal argument "projects;" and is denied.
+
+set -eu
+
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+export PATH
+
+# The one file this key can ever read.
+PROJECTS_FILE=/root/.openclaw/workspace/PROJECTS.md
+
+case "${1:-}" in
+  projects)
+    # Extra arguments are a sign of an injection attempt, not a typo.
+    [ "$#" -eq 1 ] || { echo "cc-projects: denied (no arguments allowed)" >&2; exit 1; }
+    exec cat "$PROJECTS_FILE"
+    ;;
+  *)
+    echo "cc-projects: denied (allowed: projects)" >&2
+    exit 1
+    ;;
+esac

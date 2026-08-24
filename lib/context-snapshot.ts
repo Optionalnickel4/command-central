@@ -1,4 +1,5 @@
 import { formatUptime } from "@/lib/format";
+import { getProjectStatus } from "@/lib/projects";
 import { normalizeMatch, unwrap, vlr, type VlrMatch } from "@/lib/vlr";
 
 /**
@@ -49,7 +50,7 @@ const pct = (used: number, total: number) => (total > 0 ? Math.round((used / tot
 export async function buildContextSnapshot(): Promise<string> {
   if (cache && Date.now() - cache.at < CACHE_MS) return cache.text;
 
-  const [homelab, detail, matches, rankings, solStatus, usage, results] = await Promise.all([
+  const [homelab, detail, matches, rankings, solStatus, usage, results, projects] = await Promise.all([
     grab<any>("/api/widgets/homelab"),
     grab<any>("/api/widgets/homelab-detail"),
     grab<any>("/api/widgets/esports/matches"),
@@ -60,7 +61,11 @@ export async function buildContextSnapshot(): Promise<string> {
     // (same client the panels use). Failure just drops the RECENT lines.
     vlr<unknown>("/matches/results", 3000)
       .then((raw) => unwrap<VlrMatch>(raw).map(normalizeMatch))
-      .catch(() => null)
+      .catch(() => null),
+    // Lifecycle, not health: the canonical PROJECTS.md on 152, read over the
+    // cc-projects wrapper, cached 10min and trimmed. Returns null (section
+    // omitted) rather than throwing if 152 is slow or down.
+    getProjectStatus()
   ]);
 
   const lines: string[] = [];
@@ -165,8 +170,19 @@ export async function buildContextSnapshot(): Promise<string> {
     lines.push("SOL STATS: unavailable (cc-stats link not responding)");
   }
 
+  // --- Project status (lifecycle, from PROJECTS.md on 152) ---------------
+  // Deliberately labelled apart from everything above: "what phase is mrvl-api
+  // in" is a different question from "is mrvl-api responding", and without this
+  // header the model answered the second when asked the first.
+  if (projects) {
+    lines.push(
+      "PROJECT STATUS (lifecycle, not live health \u2014 what phase each project is in, what has shipped, what is next). Source: PROJECTS.md on 10.0.0.152, the canonical project tracker:"
+    );
+    lines.push(projects);
+  }
+
   lines.push(
-    "YOU CAN ANSWER FROM THIS: any container's status/IP/CPU/memory/uptime, whether anything is wrong, current esports fixtures/results/rankings, and your own task/session/token stats. For a SPECIFIC player, team, match or region not shown above, a live vlr-api lookup is attached under [ESPORTS LOOKUP] when relevant. Use these numbers rather than saying you lack access."
+    "YOU CAN ANSWER FROM THIS: any container's status/IP/CPU/memory/uptime, whether anything is wrong, current esports fixtures/results/rankings, and your own task/session/token stats. For a project (vlr-api, mrvl-api, ...), \"status\" means the PROJECT STATUS section \u2014 its phase, what shipped, what is next \u2014 NOT whether its service is up; only answer with uptime if the user explicitly asks about health, responding or downtime. For a SPECIFIC player, team, match or region not shown above, a live vlr-api lookup is attached under [ESPORTS LOOKUP] when relevant. Use these numbers rather than saying you lack access."
   );
 
   const text = lines.join("\n");
