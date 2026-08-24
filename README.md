@@ -25,23 +25,22 @@ expect to adapt rather than deploy. Concretely:
 - **Panels degrade individually.** Anything you can't or don't configure
   renders an "unavailable" card; the rest of the dashboard carries on. You can
   start with nothing configured and still see the whole layout.
-- **The esports section will not work for you.** See below.
+- **The esports section needs a companion service** you also self-host. See below.
 
-### The esports panels need a private service
+### The esports panels need a companion service
 
 The esports scoreboard, standings, news, stats and player-radar pages all read
-from **vlr-api** — a self-hosted Valorant (VLR.gg) REST API that the author
-runs privately. It is **not in this repo, not published, and not publicly
-reachable.**
+from **vlr-api** — a self-hosted Valorant (VLR.gg) REST API. It is a separate
+project, not bundled in this repo, but it is open source and self-hostable
+like everything else here:
 
-If you are not its owner, there is no value of `VLR_API_URL` you can set that
-will make these panels work. They will show as unavailable, which is handled
-cleanly — the app does not crash or hang. Making the esports section
-toggleable, so a cloner can switch it off rather than look at dead panels, is
-planned but not implemented; today the panels are always registered.
+> **https://github.com/Optionalnickel4/vlr-api**
 
-Everything else in the dashboard is built on things you can plausibly run
-yourself.
+Clone and run it, then point `VLR_API_URL` at it. Until you do, the esports
+panels degrade cleanly to unavailable — the app does not crash or hang — and
+the rest of the dashboard is unaffected. Making the section toggleable, so you
+can hide those panels rather than look at unconfigured ones, is planned but
+not implemented; today they are always registered.
 
 ---
 
@@ -68,7 +67,7 @@ Everything else is optional and per-feature — see the table below.
 | **Voice** | A local Piper TTS HTTP service | Replies still render as text; only speech is lost |
 | **Sol stats page** (`/sol`) | The OpenClaw stats SSH key | Panels show "Link offline" |
 | **Media page** (`/media`) | Any subset of Jellyfin / Sonarr / Radarr / Prowlarr / qBittorrent / Jellyseerr | Each unconfigured service shows one "unavailable" card |
-| **Esports** (`/`, `/esports/player/[id]`) | **vlr-api — private, see above** | Panels show as unavailable |
+| **Esports** (`/`, `/esports/player/[id]`) | [vlr-api](https://github.com/Optionalnickel4/vlr-api) — a separate service you self-host | Panels show as unavailable until `VLR_API_URL` is set |
 | **Weather / Calendar / News** | nothing — **these are hardcoded mock data today** | N/A |
 
 **Weather, calendar and news are not wired up.** Each route returns a fixed
@@ -165,7 +164,7 @@ verification is relaxed for these calls only, never globally. Don't
 
 | Variable | Required? | Notes |
 |---|---|---|
-| `VLR_API_URL` | for esports | **Private service — see the warning above.** Read by `lib/vlr.ts`; only server-side esports routes import it. |
+| `VLR_API_URL` | for esports | Base URL of your own [vlr-api](https://github.com/Optionalnickel4/vlr-api) instance — a separate self-hosted service, see above. Read by `lib/vlr.ts`; only server-side esports routes import it. |
 
 ### Media stack — all read-only, all independent
 
@@ -272,7 +271,7 @@ components/
   widgets/registry.ts       → THE list of widgets and where they orbit
 lib/
   pve.ts                    → Proxmox client (Node https — see above)
-  vlr.ts                    → vlr-api client (private service)
+  vlr.ts                    → vlr-api client (separate self-hosted service)
   media.ts                  → all six media-service clients
   sol.ts / projects.ts      → the restricted SSH links
   fetcher.ts                → useWidgetData() polling hook
