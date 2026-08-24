@@ -85,7 +85,7 @@ export default function MediaPanels() {
   const radarr = data.radarr;
 
   return (
-    <div className="sol-grid flex-1 pb-4">
+    <div className="sol-grid content-start flex-1 pb-4">
       {/* ---------- CENTREPIECE: now playing ---------- */}
       <div className="power-on sol-span-2" style={{ ["--i" as string]: 0 }}>
         <Panel
@@ -112,12 +112,28 @@ export default function MediaPanels() {
                         {s.user}
                       </span>
                     </span>
-                    <span className={`font-mono text-[8.5px] uppercase tracking-[0.18em] px-1.5 py-0.5 rounded border shrink-0 ${
-                      s.isTranscoding
-                        ? "text-amber-300 border-amber-400/40 bg-amber-400/10"
-                        : "text-emerald-300 border-emerald-400/40 bg-emerald-400/10"
-                    }`}>
-                      {s.isTranscoding ? "transcode" : "direct"}
+                    <span className="relative group shrink-0">
+                      <span
+                        tabIndex={s.isTranscoding && s.transcodeReason ? 0 : undefined}
+                        className={`block font-mono text-[8.5px] uppercase tracking-[0.18em] px-1.5 py-0.5 rounded border outline-none ${
+                          s.isTranscoding
+                            ? "text-amber-300 border-amber-400/40 bg-amber-400/10"
+                            : "text-emerald-300 border-emerald-400/40 bg-emerald-400/10"
+                        } ${s.isTranscoding && s.transcodeReason ? "cursor-help" : ""}`}
+                      >
+                        {s.isTranscoding ? "transcode" : "direct"}
+                      </span>
+                      {/* Why Jellyfin is transcoding — metadata, not an alert, so it
+                          stays off the panel face until the badge is hovered/focused. */}
+                      {s.isTranscoding && s.transcodeReason && (
+                        <span
+                          role="tooltip"
+                          className="pointer-events-none absolute right-0 top-full mt-1 z-20 whitespace-nowrap rounded border border-cyan-500/25 bg-slate-950/95 px-2 py-1 font-mono text-[9px] normal-case tracking-[0.08em] text-cyan-300/70 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100 motion-reduce:transition-none"
+                          style={{ boxShadow: "0 0 10px rgba(2, 6, 23, 0.9)" }}
+                        >
+                          Transcoding: {s.transcodeReason}
+                        </span>
+                      )}
                     </span>
                   </div>
                   <p className="font-display text-[15px] uppercase tracking-[0.05em] text-cyan-100 truncate">{s.title}</p>
@@ -129,11 +145,6 @@ export default function MediaPanels() {
                       <span className="truncate max-w-[55%]">{s.client} · {s.device}</span>
                     </div>
                   </div>
-                  {s.isTranscoding && s.transcodeReason && (
-                    <p className="font-mono text-[9px] text-amber-300/70 mt-1.5 truncate">
-                      reason: {s.transcodeReason}
-                    </p>
-                  )}
                 </div>
               ))}
             </div>
