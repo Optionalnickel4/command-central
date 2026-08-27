@@ -26,4 +26,8 @@ export interface WidgetResponse<T> {
   status: "ok" | "degraded" | "error";
   updatedAt: string;
   data: T;
+  /** True when `data` is hardcoded placeholder, not a live source. Absent on
+   *  real routes, so a consumer (including the assistant snapshot) can tell
+   *  sample numbers from real ones. */
+  mock?: boolean;
 }

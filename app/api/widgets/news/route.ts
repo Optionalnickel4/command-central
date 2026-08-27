@@ -16,6 +16,8 @@ export interface NewsData {
 export async function GET() {
   const body: WidgetResponse<NewsData> = {
     status: "ok",
+    // Honest flag: this payload is hardcoded placeholder, not a live source.
+    mock: true,
     updatedAt: new Date().toISOString(),
     data: {
       headlines: ["New GPU driver release fixes stutter", "Indie title tops the weekend charts"]

@@ -15,6 +15,8 @@ export interface CalendarData {
 export async function GET() {
   const body: WidgetResponse<CalendarData> = {
     status: "ok",
+    // Honest flag: this payload is hardcoded placeholder, not a live source.
+    mock: true,
     updatedAt: new Date().toISOString(),
     data: {
       events: [

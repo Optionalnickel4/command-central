@@ -36,5 +36,5 @@ export function useWidgetData<T>(url: string, intervalMs = 30000) {
     };
   }, [url, intervalMs]);
 
-  return { data: state?.data ?? null, status: state?.status, updatedAt: state?.updatedAt, error };
+  return { data: state?.data ?? null, status: state?.status, updatedAt: state?.updatedAt, mock: state?.mock ?? false, error };
 }

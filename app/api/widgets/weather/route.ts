@@ -17,6 +17,8 @@ export interface WeatherData {
 export async function GET() {
   const body: WidgetResponse<WeatherData> = {
     status: "ok",
+    // Honest flag: this payload is hardcoded placeholder, not a live source.
+    mock: true,
     updatedAt: new Date().toISOString(),
     data: { tempF: 72, condition: "Partly cloudy", location: "Philadelphia" }
   };
