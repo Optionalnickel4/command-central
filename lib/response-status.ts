@@ -23,6 +23,11 @@ export interface SliceResult {
 }
 
 export const OK = 200;
+/**
+ * The feature is not part of this instance — switched off, or never configured.
+ * Not a failure, so deliberately not a 5xx.
+ */
+export const NOT_PRESENT = 404;
 /** An upstream this route depends on is unreachable, unconfigured, or errored. */
 export const UPSTREAM_UNAVAILABLE = 503;
 /** An upstream answered, but with an error rather than a usable result. */
@@ -54,4 +59,32 @@ export function aggregateStatus(results: SliceResult[]): number {
  */
 export function widgetStatus(status: "ok" | "error"): number {
   return status === "ok" ? OK : UPSTREAM_UNAVAILABLE;
+}
+
+/**
+ * The pre-flight gate every esports route runs before it touches vlr-api.
+ *
+ * Three outcomes, and the middle one is the point of this helper: "no
+ * VLR_API_URL" and "VLR_API_URL is set but the host is down" are DIFFERENT
+ * situations and must not read alike to a consumer.
+ *
+ *   flag off        → 404. Not part of this instance.
+ *   URL unset       → 404. Config absent — a clone mid-setup with esports left
+ *                     on but no vlr-api pointed at yet. Nothing is broken, so a
+ *                     503 ("this was supposed to work and didn't") would lie.
+ *   configured      → ready: go and fetch. Only a FAILED call is a 503, and
+ *                     that is decided later, by widgetStatus.
+ *
+ * Pure, and takes the two booleans rather than reading env itself, so the
+ * routes keep using the existing esportsEnabled() / hasVlrConfig() helpers —
+ * the checks stay in one place each and this only decides what they mean.
+ */
+export type EsportsGate =
+  | { ready: false; status: number; error: string }
+  | { ready: true };
+
+export function esportsGate(enabled: boolean, configured: boolean): EsportsGate {
+  if (!enabled) return { ready: false, status: NOT_PRESENT, error: "esports disabled" };
+  if (!configured) return { ready: false, status: NOT_PRESENT, error: "esports not configured" };
+  return { ready: true };
 }

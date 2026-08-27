@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { WidgetResponse } from "@/components/widgets/types";
 import { hasVlrConfig, normalizeMatch, unwrap, vlr, type Match, type VlrMatch } from "@/lib/vlr";
 import { esportsEnabled } from "@/lib/features";
-import { UPSTREAM_UNAVAILABLE } from "@/lib/response-status";
+import { UPSTREAM_UNAVAILABLE, esportsGate } from "@/lib/response-status";
 
 // vlr-api lives on another box and can vanish; this route always resolves.
 export const dynamic = "force-dynamic";
@@ -26,11 +26,11 @@ function fail(): NextResponse {
 }
 
 export async function GET() {
-  // Not part of this instance when ENABLE_ESPORTS is off: 404 rather than a
-  // degraded widget payload, so nothing here ever reaches vlr-api.
-  if (!esportsEnabled()) return NextResponse.json({ error: "esports disabled" }, { status: 404 });
-
-  if (!hasVlrConfig()) return fail();
+  // One gate, two different meanings: esports switched off, or switched on but
+  // with no VLR_API_URL yet. Both are "not part of this instance" (404), not a
+  // failure — a 503 is reserved for a vlr-api that IS configured and is down.
+  const gate = esportsGate(esportsEnabled(), hasVlrConfig());
+  if (!gate.ready) return NextResponse.json({ error: gate.error }, { status: gate.status });
 
   try {
     // Upcoming is always fetched: it's the fallback hero when nothing is live.
