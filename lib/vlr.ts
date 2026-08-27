@@ -2,7 +2,7 @@
  * Server-side client for the self-hosted vlr-api (Valorant esports data).
  *
  * Only ever imported by routes under app/api/widgets/esports/* — the base URL
- * stays on the server and the browser never talks to 10.0.0.82 directly.
+ * stays on the server and the browser never talks to 10.0.0.21 directly.
  *
  * Plain fetch is correct here: vlr-api is HTTP with a normal cert story. The
  * Node-https rule in CLAUDE.md is specific to Proxmox's self-signed endpoint.

@@ -5,7 +5,7 @@ sol). The user wants it to go DEEP on esports: (1) a richer always-on esports sl
 in the snapshot, AND (2) an ON-DEMAND lookup so it can pull ANYTHING vlr-api exposes
 for a specific team / player / match / ranking the user asks about.
 
-vlr-api is LAN-reachable at 10.0.0.82:8000 (VLR_API_URL in .env.local), already used
+vlr-api is LAN-reachable at 10.0.0.21:8000 (VLR_API_URL in .env.local), already used
 by the esports panels — NO new access needed. But RE-CURL each endpoint you wire to
 confirm its real shape; do NOT assume from memory. Known past quirks: live matches
 have NO map field; /stats uses a {data,stale,error} envelope (not a bare array);
