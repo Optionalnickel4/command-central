@@ -109,14 +109,55 @@ const FAILURE_MESSAGE: Record<AssistantBackend, string> = {
   claude: "◇ Claude backend unavailable. Check the claude CLI login on this box."
 };
 
+// Ceiling on total input. Generous for real chat, but stops a garbage
+// megabyte from reaching a backend that shells out.
+const MAX_INPUT_CHARS = 10000;
+
+interface ChatMessage {
+  role: string;
+  content: string;
+}
+
+/** Terse 400 — never echo the offending input, never leak internals. */
+const badRequest = () => NextResponse.json({ error: "invalid request" }, { status: 400 });
+
 export async function POST(req: Request) {
-  const { messages, backend } = await req.json();
+  // Validate the request shape BEFORE any work. This is the one surface that
+  // shells out (execFile to claude / the SSH wrapper), so a malformed or
+  // oversized body is rejected here — cheaply, ahead of the context snapshot
+  // and either backend — rather than handled by assumption downstream.
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return badRequest();
+  }
+  if (typeof body !== "object" || body === null) return badRequest();
+  const { messages, backend } = body as { messages?: unknown; backend?: unknown };
+
+  // messages must be a non-empty array of { role: string, content: string }.
+  if (!Array.isArray(messages) || messages.length === 0) return badRequest();
+  for (const m of messages) {
+    if (typeof m !== "object" || m === null) return badRequest();
+    const { role, content } = m as { role?: unknown; content?: unknown };
+    if (typeof role !== "string" || typeof content !== "string") return badRequest();
+  }
+  const msgs = messages as ChatMessage[];
+
+  // backend is optional; when present it must be exactly one of the two names.
+  // An arbitrary string is rejected rather than silently defaulted through.
+  if (backend !== undefined && backend !== "sol" && backend !== "claude") return badRequest();
+
+  // Cap total input size before doing anything with it.
+  const totalChars = msgs.reduce((n, m) => n + m.content.length, 0);
+  if (totalChars > MAX_INPUT_CHARS) return badRequest();
+
   // Claude is the default: it's the backend verified working on this box.
   const chosen: AssistantBackend = backend === "sol" ? "sol" : "claude";
 
   // Only the latest user message is sent — OpenClaw keeps its own session
   // history under the command-central session id, so we don't resend it all.
-  const last = [...messages].reverse().find((m: { role: string }) => m.role === "user");
+  const last = [...msgs].reverse().find((m) => m.role === "user");
   if (!last) return NextResponse.json({ reply: "", backend: chosen });
 
   const startedAt = Date.now();
