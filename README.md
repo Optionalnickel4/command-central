@@ -78,9 +78,12 @@ PIPER_URL=http://127.0.0.1:5303
 
 ```dotenv
 VLR_API_URL=http://your-vlr-api:8000
+ENABLE_ESPORTS=false
 ```
 
 The API is a separate self-hosted service. Without it, esports routes return unavailable.
+
+`ENABLE_ESPORTS` defaults to on when unset. Set it to `false` if you do not run vlr-api: the esports panels, the `/esports/player/[id]` route and the command-bar entry are removed, and nothing in the app calls vlr-api — including the assistant's context snapshot and its esports lookups. The dashboard page is prerendered, so run `npm run build` after changing the flag — a restart alone keeps the old value.
 
 ### Media
 

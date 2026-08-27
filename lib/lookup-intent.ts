@@ -1,4 +1,5 @@
 import { runVlrLookup, type LookupKind, type LookupResult } from "@/lib/vlr";
+import { esportsEnabled } from "@/lib/features";
 
 /**
  * Decides whether a turn needs a live vlr-api lookup, and of what.
@@ -10,6 +11,11 @@ import { runVlrLookup, type LookupKind, type LookupResult } from "@/lib/vlr";
  *
  * Strictly ONE lookup per turn. Any parse failure falls back to "none" so a
  * confused pre-pass can never wedge or inflate a turn.
+ *
+ * All three entry points short-circuit when ENABLE_ESPORTS is off, so a turn on
+ * an instance without vlr-api never pays for the pre-pass and never fires a
+ * doomed round-trip. The chat route needs no change: it already skips the
+ * pre-pass on "none" and attaches nothing when the lookup returns null.
  */
 
 const ESPORTS_HINT =
@@ -54,6 +60,7 @@ export interface Intent {
 
 /** Stage 1 — obvious phrasings, no model call. */
 export function parseIntent(message: string): Intent {
+  if (!esportsEnabled()) return { kind: "none", query: "", via: "none" };
   const m = message.trim();
   const low = m.toLowerCase();
 
@@ -93,7 +100,7 @@ export function parseIntent(message: string): Intent {
 
 /** Does this look like an esports question at all? Gates the pre-pass. */
 export function looksLikeEsports(message: string): boolean {
-  return ESPORTS_HINT.test(message);
+  return esportsEnabled() && ESPORTS_HINT.test(message);
 }
 
 /**
@@ -124,6 +131,6 @@ export const PREPASS_PROMPT = (message: string) =>
 
 /** Execute the chosen lookup, or nothing. */
 export async function performLookup(intent: Intent): Promise<LookupResult | null> {
-  if (intent.kind === "none") return null;
+  if (!esportsEnabled() || intent.kind === "none") return null;
   return runVlrLookup(intent.kind, intent.query);
 }

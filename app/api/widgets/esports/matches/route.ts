@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { WidgetResponse } from "@/components/widgets/types";
 import { hasVlrConfig, normalizeMatch, unwrap, vlr, type Match, type VlrMatch } from "@/lib/vlr";
+import { esportsEnabled } from "@/lib/features";
 
 // vlr-api lives on another box and can vanish; this route always resolves.
 export const dynamic = "force-dynamic";
@@ -21,6 +22,10 @@ function fail(): NextResponse {
 }
 
 export async function GET() {
+  // Not part of this instance when ENABLE_ESPORTS is off: 404 rather than a
+  // degraded widget payload, so nothing here ever reaches vlr-api.
+  if (!esportsEnabled()) return NextResponse.json({ error: "esports disabled" }, { status: 404 });
+
   if (!hasVlrConfig()) return fail();
 
   try {

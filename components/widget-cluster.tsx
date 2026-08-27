@@ -1,5 +1,6 @@
 import { getClusterSections } from "@/components/widgets/registry";
 import type { WidgetCluster } from "@/components/widgets/types";
+import { esportsEnabled } from "@/lib/features";
 
 /**
  * One orbital cluster — every registry widget assigned to this side of the
@@ -14,7 +15,8 @@ export default function WidgetCluster({
   /** Offset for the power-on stagger so both clusters light up in sequence. */
   startIndex?: number;
 }) {
-  const sections = getClusterSections(cluster);
+  // Server component, so the flag is read here rather than passed down.
+  const sections = getClusterSections(cluster, esportsEnabled());
   if (sections.length === 0) return null;
 
   const align = cluster === "left" ? "text-right" : "text-left";

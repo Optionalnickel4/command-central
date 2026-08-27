@@ -1,7 +1,9 @@
+import { notFound } from "next/navigation";
 import BootRelease from "@/components/boot-release";
 import ParallaxRoot from "@/components/parallax-root";
 import TickerClock from "@/components/ticker-clock";
 import PlayerDetail, { BackLink, PlayerHeader } from "@/components/esports/player-detail";
+import { esportsEnabled } from "@/lib/features";
 
 export const metadata = {
   title: "Player · Esports"
@@ -14,6 +16,10 @@ export const metadata = {
  * frame 0 until something clears the boot gate.
  */
 export default function PlayerPage({ params }: { params: { id: string } }) {
+  // With esports off there are no leaderboard rows to reach this from; the 404
+  // is for a direct hit on a stale link, so it never renders a dead radar.
+  if (!esportsEnabled()) notFound();
+
   return (
     <>
       <div className="hud-bg" />

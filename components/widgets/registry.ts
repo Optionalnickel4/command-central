@@ -40,8 +40,20 @@ export const SECTION_TITLES: Record<string, string> = {
   esports: "Esports"
 };
 
-export function getWidgetsBySection(section: string): WidgetDefinition[] {
-  return widgetRegistry.filter((w) => w.section === section);
+/**
+ * The registry filtered for this instance. Esports is gated by ENABLE_ESPORTS
+ * (lib/features.ts): with the flag off its entries are never registered, so the
+ * section simply doesn't exist and the clusters reflow around it.
+ *
+ * The flag is resolved on the SERVER and passed in, because this module is also
+ * bundled into the client command bar, where process.env is not readable.
+ */
+function visibleWidgets(esports: boolean): WidgetDefinition[] {
+  return esports ? widgetRegistry : widgetRegistry.filter((w) => w.section !== "esports");
+}
+
+export function getWidgetsBySection(section: string, esports = true): WidgetDefinition[] {
+  return visibleWidgets(esports).filter((w) => w.section === section);
 }
 
 /**
@@ -49,9 +61,9 @@ export function getWidgetsBySection(section: string): WidgetDefinition[] {
  * quick-jump buttons build themselves from this, so a new section shows up
  * there automatically.
  */
-export function getAllSections(): { section: string; title: string }[] {
+export function getAllSections(esports: boolean): { section: string; title: string }[] {
   const order: string[] = [];
-  for (const w of widgetRegistry) {
+  for (const w of visibleWidgets(esports)) {
     if (!order.includes(w.section)) order.push(w.section);
   }
   return order.map((section) => ({ section, title: SECTION_TITLES[section] ?? section }));
@@ -62,9 +74,10 @@ export function getAllSections(): { section: string; title: string }[] {
  * This is what the cockpit renders on each side of the core.
  */
 export function getClusterSections(
-  cluster: WidgetCluster
+  cluster: WidgetCluster,
+  esports: boolean
 ): { section: string; title: string; widgets: WidgetDefinition[] }[] {
-  const inCluster = widgetRegistry.filter((w) => (w.cluster ?? "right") === cluster);
+  const inCluster = visibleWidgets(esports).filter((w) => (w.cluster ?? "right") === cluster);
   const order: string[] = [];
   for (const w of inCluster) {
     if (!order.includes(w.section)) order.push(w.section);
