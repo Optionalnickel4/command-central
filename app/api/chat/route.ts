@@ -8,6 +8,7 @@ import {
 // Request-shape validation is a pure function of the parsed body, so it lives
 // in lib/ where it can be unit-tested without an HTTP round trip.
 import { validateChatBody, type AssistantBackend } from "@/lib/chat-request";
+import { BAD_UPSTREAM } from "@/lib/response-status";
 
 /**
  * Two assistant backends behind one interface. Both resolve to the same
@@ -227,9 +228,14 @@ export async function POST(req: Request) {
       inputTokens: null, outputTokens: null, totalTokens: null,
       contextTokens: null, cacheRead: null, cacheWrite: null, promptTokens: null
     });
+    // 502: the turn produced no reply because the backend behind us failed.
+    // A 200 here claimed success for a body that is an error message, which is
+    // exactly what a consumer cannot distinguish. The body is unchanged — the
+    // console reads `reply` off it either way — and still carries only the
+    // backend's own last line, never internals.
     return NextResponse.json({
       reply: detail ? `◇ ${BACKEND_NAME[chosen]} replied with an error: ${detail}` : FAILURE_MESSAGE[chosen],
       backend: chosen
-    });
+    }, { status: BAD_UPSTREAM });
   }
 }

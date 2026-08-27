@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type { WidgetResponse } from "@/components/widgets/types";
 import { hasVlrConfig, unwrap, vlr } from "@/lib/vlr";
 import { esportsEnabled } from "@/lib/features";
+import { UPSTREAM_UNAVAILABLE } from "@/lib/response-status";
 
 export const dynamic = "force-dynamic";
 
@@ -74,17 +75,22 @@ const EMPTY = (id: string): EsportsPlayerData => ({
   agents: [], leaderboard: null
 });
 
+// The PROFILE call is required; dimensions and the leaderboard row each degrade
+// on their own and still return 200 with the profile. Only a failed profile (or
+// no vlr-api at all, or an unusable id) leaves nothing to render — that is 503.
+const unavailable = (id: string) =>
+  NextResponse.json(
+    { status: "error", updatedAt: new Date().toISOString(), data: EMPTY(id) } satisfies WidgetResponse<EsportsPlayerData>,
+    { status: UPSTREAM_UNAVAILABLE }
+  );
+
 export async function GET(_req: Request, ctx: { params: { id: string } }) {
   // Not part of this instance when ENABLE_ESPORTS is off: 404 rather than a
   // degraded widget payload, so nothing here ever reaches vlr-api.
   if (!esportsEnabled()) return NextResponse.json({ error: "esports disabled" }, { status: 404 });
 
   const id = String(ctx.params.id ?? "").replace(/\D/g, "");
-  if (!hasVlrConfig() || !id) {
-    return NextResponse.json({
-      status: "error", updatedAt: new Date().toISOString(), data: EMPTY(id)
-    } satisfies WidgetResponse<EsportsPlayerData>);
-  }
+  if (!hasVlrConfig() || !id) return unavailable(id);
 
   try {
     // Each source degrades on its own: a missing leaderboard row or absent
@@ -147,8 +153,6 @@ export async function GET(_req: Request, ctx: { params: { id: string } }) {
     } satisfies WidgetResponse<EsportsPlayerData>);
   } catch (err) {
     console.error("esports player fetch failed:", err instanceof Error ? err.message : err);
-    return NextResponse.json({
-      status: "error", updatedAt: new Date().toISOString(), data: EMPTY(id)
-    } satisfies WidgetResponse<EsportsPlayerData>);
+    return unavailable(id);
   }
 }

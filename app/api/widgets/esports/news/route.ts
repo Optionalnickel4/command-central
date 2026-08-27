@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type { WidgetResponse } from "@/components/widgets/types";
 import { hasVlrConfig, unwrap, vlr } from "@/lib/vlr";
 import { esportsEnabled } from "@/lib/features";
+import { UPSTREAM_UNAVAILABLE } from "@/lib/response-status";
 
 export const dynamic = "force-dynamic";
 
@@ -37,16 +38,25 @@ function parseAuthor(meta?: string | null): string | null {
   return match ? match[1].trim() : null;
 }
 
+// vlr-api is this route's only source, so a failed call leaves nothing to
+// render: 503, with the WidgetResponse body kept so the panel still shows its
+// own "feed offline" state. The ENABLE_ESPORTS 404 above is separate — that is
+// "not part of this instance", not a failure.
+//
+// feedOk:false with headlines present is NOT this case: that is the status
+// probe alone having failed, which is partial success and stays 200.
+const unavailable = () =>
+  NextResponse.json(
+    { status: "error", updatedAt: new Date().toISOString(), data: EMPTY } satisfies WidgetResponse<EsportsNewsData>,
+    { status: UPSTREAM_UNAVAILABLE }
+  );
+
 export async function GET() {
   // Not part of this instance when ENABLE_ESPORTS is off: 404 rather than a
   // degraded widget payload, so nothing here ever reaches vlr-api.
   if (!esportsEnabled()) return NextResponse.json({ error: "esports disabled" }, { status: 404 });
 
-  if (!hasVlrConfig()) {
-    return NextResponse.json({
-      status: "error", updatedAt: new Date().toISOString(), data: EMPTY
-    } satisfies WidgetResponse<EsportsNewsData>);
-  }
+  if (!hasVlrConfig()) return unavailable();
   try {
     // Status is best-effort: a healthy news feed shouldn't be hidden because
     // the status probe failed.
@@ -76,8 +86,6 @@ export async function GET() {
     } satisfies WidgetResponse<EsportsNewsData>);
   } catch (err) {
     console.error("esports news fetch failed:", err instanceof Error ? err.message : err);
-    return NextResponse.json({
-      status: "error", updatedAt: new Date().toISOString(), data: EMPTY
-    } satisfies WidgetResponse<EsportsNewsData>);
+    return unavailable();
   }
 }

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { WidgetResponse } from "@/components/widgets/types";
+import { INTERNAL_ERROR } from "@/lib/response-status";
 import { readTurns, USAGE_LIMITS, type UsageTurn } from "@/lib/usage-log";
 
 export const dynamic = "force-dynamic";
@@ -71,8 +72,11 @@ export async function GET() {
     } satisfies WidgetResponse<SolUsageData>);
   } catch (err) {
     console.error("sol usage failed:", err instanceof Error ? err.message : err);
-    return NextResponse.json({
-      status: "error", updatedAt: new Date().toISOString(), data: EMPTY
-    } satisfies WidgetResponse<SolUsageData>);
+    // 500, not 503: this route reads a local log file, so a failure here is
+    // ours rather than some upstream's. The reason stays in the server log.
+    return NextResponse.json(
+      { status: "error", updatedAt: new Date().toISOString(), data: EMPTY } satisfies WidgetResponse<SolUsageData>,
+      { status: INTERNAL_ERROR }
+    );
   }
 }

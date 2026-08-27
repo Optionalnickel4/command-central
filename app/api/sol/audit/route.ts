@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { WidgetResponse } from "@/components/widgets/types";
+import { UPSTREAM_UNAVAILABLE } from "@/lib/response-status";
 import { ccStats, stripPaths } from "@/lib/sol";
 
 export const dynamic = "force-dynamic";
@@ -89,8 +90,11 @@ export async function GET() {
     } satisfies WidgetResponse<SolAuditData>);
   } catch (err) {
     console.error("sol audit failed:", err instanceof Error ? err.message : err);
-    return NextResponse.json({
-      status: "error", updatedAt: new Date().toISOString(), data: EMPTY
-    } satisfies WidgetResponse<SolAuditData>);
+    // cc-stats on 152 is the only source here, so a failed call is a failed
+    // response — 503, with the body shape kept so the panel degrades as before.
+    return NextResponse.json(
+      { status: "error", updatedAt: new Date().toISOString(), data: EMPTY } satisfies WidgetResponse<SolAuditData>,
+      { status: UPSTREAM_UNAVAILABLE }
+    );
   }
 }

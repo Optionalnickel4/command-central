@@ -3,6 +3,7 @@ import type { WidgetResponse } from "@/components/widgets/types";
 // The https-module PVE client now lives in lib/pve.ts so the detail route can
 // share it. Same mechanism as before — still NOT fetch/undici (CLAUDE.md rule 1).
 import { hasPveCredentials, pve } from "@/lib/pve";
+import { UPSTREAM_UNAVAILABLE } from "@/lib/response-status";
 
 // Without this Next prerenders this GET at build time and the panel serves
 // frozen build-time telemetry forever.
@@ -13,10 +14,18 @@ export interface HomelabData {
   guests: { vmid: number; name: string; type: "lxc" | "qemu"; status: "ok" | "error"; cpuPct: number; memPct: number }[];
 }
 
+// Proxmox is this route's ONLY source: if that call fails there is no partial
+// answer to give, so the whole response is a failure and says so with a 503.
+// The body keeps its WidgetResponse shape so the panel still renders its own
+// "telemetry unavailable" state rather than a bare error.
+const unavailable = () =>
+  NextResponse.json(
+    { status: "error", updatedAt: new Date().toISOString(), data: { nodes: [], guests: [] } } satisfies WidgetResponse<HomelabData>,
+    { status: UPSTREAM_UNAVAILABLE }
+  );
+
 export async function GET() {
-  if (!hasPveCredentials()) {
-    return NextResponse.json({ status: "error", updatedAt: new Date().toISOString(), data: { nodes: [], guests: [] } } satisfies WidgetResponse<HomelabData>);
-  }
+  if (!hasPveCredentials()) return unavailable();
   try {
     const resources = await pve("/cluster/resources");
     const nodes: HomelabData["nodes"] = resources
@@ -42,6 +51,6 @@ export async function GET() {
     return NextResponse.json({ status: "ok", updatedAt: new Date().toISOString(), data: { nodes, guests } } satisfies WidgetResponse<HomelabData>);
   } catch (err) {
     console.error("homelab PVE fetch failed:", err instanceof Error ? err.message : err);
-    return NextResponse.json({ status: "error", updatedAt: new Date().toISOString(), data: { nodes: [], guests: [] } } satisfies WidgetResponse<HomelabData>);
+    return unavailable();
   }
 }

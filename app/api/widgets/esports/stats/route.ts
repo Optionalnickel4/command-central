@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type { WidgetResponse } from "@/components/widgets/types";
 import { hasVlrConfig, isStale, unwrap, vlr } from "@/lib/vlr";
 import { esportsEnabled } from "@/lib/features";
+import { UPSTREAM_UNAVAILABLE } from "@/lib/response-status";
 
 export const dynamic = "force-dynamic";
 
@@ -46,16 +47,22 @@ interface RawStat {
 const num = (v: unknown): number | null =>
   typeof v === "number" && Number.isFinite(v) ? v : null;
 
+// vlr-api is this route's only source, so a failed call leaves nothing to
+// render: 503, with the WidgetResponse body kept so the panel still shows its
+// own "feed offline" state. The ENABLE_ESPORTS 404 above is separate — that is
+// "not part of this instance", not a failure.
+const unavailable = () =>
+  NextResponse.json(
+    { status: "error", updatedAt: new Date().toISOString(), data: EMPTY } satisfies WidgetResponse<EsportsStatsData>,
+    { status: UPSTREAM_UNAVAILABLE }
+  );
+
 export async function GET() {
   // Not part of this instance when ENABLE_ESPORTS is off: 404 rather than a
   // degraded widget payload, so nothing here ever reaches vlr-api.
   if (!esportsEnabled()) return NextResponse.json({ error: "esports disabled" }, { status: 404 });
 
-  if (!hasVlrConfig()) {
-    return NextResponse.json({
-      status: "error", updatedAt: new Date().toISOString(), data: EMPTY
-    } satisfies WidgetResponse<EsportsStatsData>);
-  }
+  if (!hasVlrConfig()) return unavailable();
   try {
     const raw = await vlr<unknown>("/stats");
     const players = unwrap<RawStat>(raw)
@@ -82,8 +89,6 @@ export async function GET() {
     } satisfies WidgetResponse<EsportsStatsData>);
   } catch (err) {
     console.error("esports stats fetch failed:", err instanceof Error ? err.message : err);
-    return NextResponse.json({
-      status: "error", updatedAt: new Date().toISOString(), data: EMPTY
-    } satisfies WidgetResponse<EsportsStatsData>);
+    return unavailable();
   }
 }

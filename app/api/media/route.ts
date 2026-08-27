@@ -3,6 +3,7 @@ import {
   fetchJellyfin, fetchSonarr, fetchRadarr, fetchProwlarr, fetchQbittorrent, fetchSeerr,
   type ServiceResult
 } from "@/lib/media";
+import { OK, aggregateStatus } from "@/lib/response-status";
 
 export const dynamic = "force-dynamic";
 
@@ -11,8 +12,13 @@ export const dynamic = "force-dynamic";
  *
  * Each is fetched in parallel and isolated: a service that is down, slow or
  * missing its key resolves to {ok:false, error} and the other five still
- * render. Nothing here can throw a 500 — a flaky qBittorrent must never blank
+ * render. Nothing here can throw — a flaky qBittorrent must never blank
  * the page.
+ *
+ * The HTTP status follows the same split. One (or four) dead services is
+ * DEGRADATION, not failure: still 200, with the dead slices marked unavailable,
+ * because there is a page to render. Only when all six are down is the whole
+ * response a failure, and only then does it become 503.
  *
  * READ-ONLY. No mutating call exists in this path.
  */
@@ -47,9 +53,15 @@ const MEDIA_TTL_MS = Number(process.env.MEDIA_TTL_MS) > 0
   ? Number(process.env.MEDIA_TTL_MS)
   : 15000;
 
+/**
+ * 200 while any of the six answered; 503 only when none did. Derived from the
+ * assembled payload, so a cache hit reports exactly the status its body earned.
+ */
+const statusFor = (data: MediaData) => aggregateStatus(Object.values(data));
+
 export async function GET() {
   if (cache && Date.now() - cache.at < MEDIA_TTL_MS) {
-    return NextResponse.json(cache.body);
+    return NextResponse.json(cache.body, { status: statusFor(cache.body.data) });
   }
 
   const settle = async <T,>(p: Promise<ServiceResult<T>>): Promise<ServiceResult<T>> => {
@@ -69,11 +81,15 @@ export async function GET() {
     settle(fetchSeerr())
   ]);
 
+  const data = { jellyfin, sonarr, radarr, prowlarr, qbittorrent, seerr };
   const body = {
-    status: "ok",
+    // The envelope agrees with the status line: "ok" while anything came back
+    // (the dead slices carry their own error), "error" only when all six are
+    // down and there is no page left to draw.
+    status: statusFor(data) === OK ? "ok" : "error",
     updatedAt: new Date().toISOString(),
-    data: { jellyfin, sonarr, radarr, prowlarr, qbittorrent, seerr }
+    data
   };
   cache = { at: Date.now(), body };
-  return NextResponse.json(body);
+  return NextResponse.json(body, { status: statusFor(body.data) });
 }

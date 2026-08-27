@@ -17,8 +17,16 @@ export function useWidgetData<T>(url: string, intervalMs = 30000) {
     async function load() {
       try {
         const res = await fetch(url);
-        if (!res.ok) throw new Error(`${url} responded ${res.status}`);
-        const json: WidgetResponse<T> = await res.json();
+        // Routes now answer 5xx when the WHOLE response is a failure, but they
+        // still send a WidgetResponse body saying so. Read it: a panel showing
+        // its own "unavailable" state is better than the generic transport
+        // error, and this keeps the rendering identical to before the status
+        // codes became honest. Only a response with no usable body is a
+        // transport failure.
+        const json = (await res.json().catch(() => null)) as WidgetResponse<T> | null;
+        if (!json || typeof json.status !== "string") {
+          throw new Error(`${url} responded ${res.status}`);
+        }
         if (!cancelled) {
           setState(json);
           setError(null);

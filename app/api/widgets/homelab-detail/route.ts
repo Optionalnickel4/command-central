@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { WidgetResponse } from "@/components/widgets/types";
 import { hasPveCredentials, pve } from "@/lib/pve";
+import { UPSTREAM_UNAVAILABLE } from "@/lib/response-status";
 
 // Heavy companion to /api/widgets/homelab. That route stays light (one
 // cluster/resources call) and drives the gauges at 15s; this one fans out
@@ -75,14 +76,17 @@ function num(value: unknown, fallback = 0): number {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
 }
 
+// Same single-source rule as the light route: no cluster/resources call, no
+// response. Per-GUEST failures inside a successful fan-out are different — those
+// degrade that guest only and stay 200.
+const unavailable = () =>
+  NextResponse.json(
+    { status: "error", updatedAt: new Date().toISOString(), data: EMPTY } satisfies WidgetResponse<HomelabDetailData>,
+    { status: UPSTREAM_UNAVAILABLE }
+  );
+
 export async function GET() {
-  if (!hasPveCredentials()) {
-    return NextResponse.json({
-      status: "error",
-      updatedAt: new Date().toISOString(),
-      data: EMPTY
-    } satisfies WidgetResponse<HomelabDetailData>);
-  }
+  if (!hasPveCredentials()) return unavailable();
 
   if (cache && Date.now() - cache.at < TTL_MS) {
     return NextResponse.json(cache.payload);
@@ -183,10 +187,6 @@ export async function GET() {
     return NextResponse.json(payload);
   } catch (err) {
     console.error("homelab detail fetch failed:", err instanceof Error ? err.message : err);
-    return NextResponse.json({
-      status: "error",
-      updatedAt: new Date().toISOString(),
-      data: EMPTY
-    } satisfies WidgetResponse<HomelabDetailData>);
+    return unavailable();
   }
 }

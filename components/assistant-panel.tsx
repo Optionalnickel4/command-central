@@ -163,8 +163,13 @@ export default function AssistantPanel() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ messages: next, backend })
       });
-      if (!res.ok) throw new Error(`${res.status}`);
-      const { reply } = await res.json();
+      // A backend failure is a 502 now, but its body still carries the
+      // backend's OWN last line in `reply` — which is the diagnosable part, and
+      // far more use than "backend unreachable". Prefer it; fall back to the
+      // generic message only when there is no readable body at all.
+      const payload = await res.json().catch(() => null);
+      const reply = payload?.reply;
+      if (typeof reply !== "string") throw new Error(`${res.status}`);
       const text = String(reply ?? "");
       setMessages((m) => [...m, { role: "assistant", content: reply }]);
 
