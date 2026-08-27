@@ -35,8 +35,13 @@ function fail<T>(error: string): ServiceResult<T> {
   return { ok: false, data: null, error };
 }
 
-/** Translate transport/auth failures into something safe to display. */
-function describe(err: unknown, status?: number): string {
+/**
+ * Translate transport/auth failures into something safe to display.
+ *
+ * Exported so the degraded path is testable: whatever an upstream throws, this
+ * is the short, credential-free string the UI ends up showing.
+ */
+export function describe(err: unknown, status?: number): string {
   if (status === 401 || status === 403) return "auth failed — check the API key";
   if (status && status >= 500) return `service error (${status})`;
   if (status) return `unexpected response (${status})`;
@@ -97,6 +102,71 @@ export interface JellyfinData {
 
 const TICKS_PER_SEC = 10_000_000;
 
+/**
+ * Shape Jellyfin's raw /Sessions, /Items/Counts and /Items/Latest payloads into
+ * the panel's JellyfinData. Pure — every input is already-fetched JSON, so the
+ * transform (and its "only sessions with NowPlayingItem" filter, its transcode
+ * detection and its series-vs-movie title/subtitle split) is testable alone.
+ */
+export function normalizeJellyfin(
+  info: any,
+  sessionsRaw: unknown,
+  countsRaw: any,
+  latestRaw: unknown
+): JellyfinData {
+  const sessions: JellyfinSession[] = (Array.isArray(sessionsRaw) ? sessionsRaw : [])
+    .filter((s) => s?.NowPlayingItem)
+    .map((s) => {
+      const item = s.NowPlayingItem ?? {};
+      const play = s.PlayState ?? {};
+      const runtime = Number(item.RunTimeTicks ?? 0);
+      const pos = Number(play.PositionTicks ?? 0);
+      const method = String(play.PlayMethod ?? "Unknown");
+      const transcode = s.TranscodingInfo ?? null;
+      return {
+        user: s.UserName ?? "unknown",
+        title: item.SeriesName ? item.SeriesName : item.Name ?? "Unknown",
+        subtitle: item.SeriesName
+          ? `${item.ParentIndexNumber != null ? `S${item.ParentIndexNumber}` : ""}${item.IndexNumber != null ? `E${item.IndexNumber}` : ""} ${item.Name ?? ""}`.trim()
+          : item.ProductionYear
+            ? String(item.ProductionYear)
+            : null,
+        type: item.Type ?? null,
+        playMethod: method,
+        isTranscoding: /transcode/i.test(method),
+        transcodeReason: Array.isArray(transcode?.TranscodeReasons)
+          ? transcode.TranscodeReasons.join(", ")
+          : transcode?.TranscodeReasons ?? null,
+        positionTicks: pos,
+        runtimeTicks: runtime,
+        progressPct: runtime > 0 ? Math.min(100, Math.round((pos / runtime) * 100)) : 0,
+        paused: Boolean(play.IsPaused),
+        device: s.DeviceName ?? "?",
+        client: s.Client ?? "?"
+      };
+    });
+
+  return {
+    serverName: info?.ServerName ?? null,
+    version: info?.Version ?? null,
+    sessions,
+    counts: countsRaw
+      ? {
+          movies: countsRaw.MovieCount ?? null,
+          series: countsRaw.SeriesCount ?? null,
+          episodes: countsRaw.EpisodeCount ?? null
+        }
+      : null,
+    latest: (Array.isArray(latestRaw) ? latestRaw : []).slice(0, 8).map((i: any) => ({
+      id: String(i.Id ?? ""),
+      name: i.Name ?? "?",
+      type: i.Type ?? null,
+      year: i.ProductionYear ?? null,
+      series: i.SeriesName ?? null
+    }))
+  };
+}
+
 export async function fetchJellyfin(): Promise<ServiceResult<JellyfinData>> {
   const base = trimSlash(env("JELLYFIN_URL"));
   const key = env("JELLYFIN_API_KEY");
@@ -122,57 +192,7 @@ export async function fetchJellyfin(): Promise<ServiceResult<JellyfinData>> {
       ? await getJson<any[]>(`${base}/Users/${userId}/Items/Latest?Limit=8`, headers).catch(() => null)
       : null;
 
-    const sessions: JellyfinSession[] = (Array.isArray(sessionsRaw) ? sessionsRaw : [])
-      .filter((s) => s?.NowPlayingItem)
-      .map((s) => {
-        const item = s.NowPlayingItem ?? {};
-        const play = s.PlayState ?? {};
-        const runtime = Number(item.RunTimeTicks ?? 0);
-        const pos = Number(play.PositionTicks ?? 0);
-        const method = String(play.PlayMethod ?? "Unknown");
-        const transcode = s.TranscodingInfo ?? null;
-        return {
-          user: s.UserName ?? "unknown",
-          title: item.SeriesName ? item.SeriesName : item.Name ?? "Unknown",
-          subtitle: item.SeriesName
-            ? `${item.ParentIndexNumber != null ? `S${item.ParentIndexNumber}` : ""}${item.IndexNumber != null ? `E${item.IndexNumber}` : ""} ${item.Name ?? ""}`.trim()
-            : item.ProductionYear
-              ? String(item.ProductionYear)
-              : null,
-          type: item.Type ?? null,
-          playMethod: method,
-          isTranscoding: /transcode/i.test(method),
-          transcodeReason: Array.isArray(transcode?.TranscodeReasons)
-            ? transcode.TranscodeReasons.join(", ")
-            : transcode?.TranscodeReasons ?? null,
-          positionTicks: pos,
-          runtimeTicks: runtime,
-          progressPct: runtime > 0 ? Math.min(100, Math.round((pos / runtime) * 100)) : 0,
-          paused: Boolean(play.IsPaused),
-          device: s.DeviceName ?? "?",
-          client: s.Client ?? "?"
-        };
-      });
-
-    return ok({
-      serverName: info?.ServerName ?? null,
-      version: info?.Version ?? null,
-      sessions,
-      counts: countsRaw
-        ? {
-            movies: countsRaw.MovieCount ?? null,
-            series: countsRaw.SeriesCount ?? null,
-            episodes: countsRaw.EpisodeCount ?? null
-          }
-        : null,
-      latest: (Array.isArray(latestRaw) ? latestRaw : []).slice(0, 8).map((i: any) => ({
-        id: String(i.Id ?? ""),
-        name: i.Name ?? "?",
-        type: i.Type ?? null,
-        year: i.ProductionYear ?? null,
-        series: i.SeriesName ?? null
-      }))
-    });
+    return ok(normalizeJellyfin(info, sessionsRaw, countsRaw, latestRaw));
   } catch (err) {
     return fail(describe(err, (err as any)?.status));
   }
@@ -211,6 +231,51 @@ export interface ArrData {
   upcoming: ArrUpcoming[];
 }
 
+/**
+ * Shape a Sonarr/Radarr queue + calendar pair into ArrData.
+ *
+ * Both quirks the probe found are handled here: /queue answers either as a bare
+ * array or as a `{records, totalRecords}` envelope, and the calendar rows differ
+ * between the two services (episode S/E vs film year and release dates).
+ */
+export function normalizeArr(
+  kind: "sonarr" | "radarr",
+  queueRaw: any,
+  calRaw: unknown
+): ArrData {
+  const records: any[] = Array.isArray(queueRaw) ? queueRaw : queueRaw?.records ?? [];
+  const queue: ArrQueueItem[] = records.slice(0, 10).map((r) => {
+    const size = Number(r.size ?? 0);
+    const left = Number(r.sizeleft ?? r.sizeLeft ?? 0);
+    return {
+      title: r.title ?? r.series?.title ?? r.movie?.title ?? "?",
+      status: r.status ?? null,
+      progressPct: size > 0 ? Math.max(0, Math.min(100, Math.round(((size - left) / size) * 100))) : 0,
+      sizeLeft: left || null,
+      size: size || null,
+      quality: r.quality?.quality?.name ?? null
+    };
+  });
+
+  const upcoming: ArrUpcoming[] = (Array.isArray(calRaw) ? calRaw : [])
+    .slice(0, 8)
+    .map((c: any) =>
+      kind === "sonarr"
+        ? {
+            title: c.series?.title ?? "?",
+            subtitle: `${c.seasonNumber != null ? `S${c.seasonNumber}` : ""}${c.episodeNumber != null ? `E${c.episodeNumber}` : ""} ${c.title ?? ""}`.trim(),
+            airsAt: c.airDateUtc ?? c.airDate ?? null
+          }
+        : {
+            title: c.title ?? "?",
+            subtitle: c.year ? String(c.year) : null,
+            airsAt: c.digitalRelease ?? c.physicalRelease ?? c.inCinemas ?? null
+          }
+    );
+
+  return { queue, queueTotal: queueRaw?.totalRecords ?? records.length, upcoming };
+}
+
 async function fetchArr(
   kind: "sonarr" | "radarr",
   baseKey: string,
@@ -232,37 +297,7 @@ async function fetchArr(
       getJson<any[]>(`${base}/api/v3/calendar?${range}`, headers).catch(() => null)
     ]);
 
-    const records: any[] = Array.isArray(queueRaw) ? queueRaw : queueRaw?.records ?? [];
-    const queue: ArrQueueItem[] = records.slice(0, 10).map((r) => {
-      const size = Number(r.size ?? 0);
-      const left = Number(r.sizeleft ?? r.sizeLeft ?? 0);
-      return {
-        title: r.title ?? r.series?.title ?? r.movie?.title ?? "?",
-        status: r.status ?? null,
-        progressPct: size > 0 ? Math.max(0, Math.min(100, Math.round(((size - left) / size) * 100))) : 0,
-        sizeLeft: left || null,
-        size: size || null,
-        quality: r.quality?.quality?.name ?? null
-      };
-    });
-
-    const upcoming: ArrUpcoming[] = (Array.isArray(calRaw) ? calRaw : [])
-      .slice(0, 8)
-      .map((c) =>
-        kind === "sonarr"
-          ? {
-              title: c.series?.title ?? "?",
-              subtitle: `${c.seasonNumber != null ? `S${c.seasonNumber}` : ""}${c.episodeNumber != null ? `E${c.episodeNumber}` : ""} ${c.title ?? ""}`.trim(),
-              airsAt: c.airDateUtc ?? c.airDate ?? null
-            }
-          : {
-              title: c.title ?? "?",
-              subtitle: c.year ? String(c.year) : null,
-              airsAt: c.digitalRelease ?? c.physicalRelease ?? c.inCinemas ?? null
-            }
-      );
-
-    return ok({ queue, queueTotal: queueRaw?.totalRecords ?? records.length, upcoming });
+    return ok(normalizeArr(kind, queueRaw, calRaw));
   } catch (err) {
     return fail(describe(err, (err as any)?.status));
   }
@@ -279,6 +314,26 @@ export interface ProwlarrData {
   indexers: { name: string; protocol: string | null; enabled: boolean; priority: number | null }[];
 }
 
+/**
+ * Shape Prowlarr's api/V1 /indexer array into ProwlarrData.
+ *
+ * Note the field is `enable` (not `enabled`) on the v1 payload — that is the
+ * shape the live API returns, and the reason this transform is worth pinning.
+ */
+export function normalizeProwlarr(raw: unknown): ProwlarrData {
+  const list = Array.isArray(raw) ? raw : [];
+  return {
+    total: list.length,
+    enabled: list.filter((i: any) => i.enable).length,
+    indexers: list.slice(0, 12).map((i: any) => ({
+      name: i.name ?? "?",
+      protocol: i.protocol ?? null,
+      enabled: Boolean(i.enable),
+      priority: typeof i.priority === "number" ? i.priority : null
+    }))
+  };
+}
+
 export async function fetchProwlarr(): Promise<ServiceResult<ProwlarrData>> {
   const base = trimSlash(env("PROWLARR_URL"));
   const key = env("PROWLARR_API_KEY");
@@ -290,17 +345,7 @@ export async function fetchProwlarr(): Promise<ServiceResult<ProwlarrData>> {
       "X-Api-Key": key,
       accept: "application/json"
     });
-    const list = Array.isArray(raw) ? raw : [];
-    return ok({
-      total: list.length,
-      enabled: list.filter((i) => i.enable).length,
-      indexers: list.slice(0, 12).map((i) => ({
-        name: i.name ?? "?",
-        protocol: i.protocol ?? null,
-        enabled: Boolean(i.enable),
-        priority: typeof i.priority === "number" ? i.priority : null
-      }))
-    });
+    return ok(normalizeProwlarr(raw));
   } catch (err) {
     return fail(describe(err, (err as any)?.status));
   }
@@ -357,6 +402,39 @@ async function qbitLogin(base: string, user: string, pass: string): Promise<stri
   }
 }
 
+/**
+ * Shape qBittorrent's /torrents/info + /transfer/info payloads into QbitData.
+ *
+ * The login/cookie dance is runtime, not data-shaping, and stays in the fetcher;
+ * this is only the transform — busiest-first ordering, progress as a percent,
+ * and the "eta 8640000 means unknown" sentinel the WebUI uses.
+ */
+export function normalizeQbit(torrentsRaw: unknown, transferRaw: any): QbitData {
+  const list: any[] = Array.isArray(torrentsRaw) ? torrentsRaw : [];
+  const torrents: QbitTorrent[] = list
+    .slice()
+    .sort((a, b) => (b.dlspeed ?? 0) - (a.dlspeed ?? 0))
+    .slice(0, 10)
+    .map((t) => ({
+      name: t.name ?? "?",
+      state: t.state ?? "?",
+      progressPct: Math.round((Number(t.progress ?? 0)) * 100),
+      dlSpeed: Number(t.dlspeed ?? 0),
+      upSpeed: Number(t.upspeed ?? 0),
+      etaSeconds: typeof t.eta === "number" && t.eta > 0 && t.eta < 8640000 ? t.eta : null,
+      size: Number(t.size ?? 0) || null
+    }));
+
+  return {
+    torrents,
+    active: list.filter((t) => /downloading|uploading|forced/i.test(t.state ?? "")).length,
+    total: list.length,
+    global: transferRaw
+      ? { dlSpeed: Number(transferRaw.dl_info_speed ?? 0), upSpeed: Number(transferRaw.up_info_speed ?? 0) }
+      : null
+  };
+}
+
 export async function fetchQbittorrent(): Promise<ServiceResult<QbitData>> {
   const base = trimSlash(env("QBITTORRENT_URL"));
   const user = env("QBITTORRENT_USER");
@@ -390,29 +468,7 @@ export async function fetchQbittorrent(): Promise<ServiceResult<QbitData>> {
       }
     }
 
-    const list = Array.isArray(result.torrentsRaw) ? result.torrentsRaw : [];
-    const torrents: QbitTorrent[] = list
-      .slice()
-      .sort((a, b) => (b.dlspeed ?? 0) - (a.dlspeed ?? 0))
-      .slice(0, 10)
-      .map((t) => ({
-        name: t.name ?? "?",
-        state: t.state ?? "?",
-        progressPct: Math.round((Number(t.progress ?? 0)) * 100),
-        dlSpeed: Number(t.dlspeed ?? 0),
-        upSpeed: Number(t.upspeed ?? 0),
-        etaSeconds: typeof t.eta === "number" && t.eta > 0 && t.eta < 8640000 ? t.eta : null,
-        size: Number(t.size ?? 0) || null
-      }));
-
-    return ok({
-      torrents,
-      active: list.filter((t) => /downloading|uploading|forced/i.test(t.state ?? "")).length,
-      total: list.length,
-      global: result.transferRaw
-        ? { dlSpeed: Number(result.transferRaw.dl_info_speed ?? 0), upSpeed: Number(result.transferRaw.up_info_speed ?? 0) }
-        : null
-    });
+    return ok(normalizeQbit(result.torrentsRaw, result.transferRaw));
   } catch (err) {
     qbitCookie = null; // force a fresh login next time
     return fail(describe(err, (err as any)?.status));
@@ -441,6 +497,40 @@ const SEERR_STATUS: Record<number, string> = {
   1: "pending", 2: "approved", 3: "declined", 4: "failed", 5: "completed"
 };
 
+/**
+ * Shape Jellyseerr's /request rows into SeerrData, given the titles already
+ * resolved through the TMDB proxy (one per row, index-aligned, null where the
+ * lookup failed or the row carried no usable tmdbId).
+ *
+ * The fallback chain is the point: a request payload's media object carries
+ * tmdbId + mediaType but no human title, so a failed resolution degrades to
+ * whatever the row does carry and finally to "tmdb:<id>" — never to a blank.
+ */
+export function normalizeSeerr(
+  status: any,
+  rows: any[],
+  titles: (string | null)[]
+): SeerrData {
+  const requests: SeerrRequest[] = rows.map((r, idx) => ({
+    id: Number(r.id ?? 0),
+    title:
+      titles[idx] ??
+      r.media?.title ??
+      r.media?.name ??
+      r.media?.originalTitle ??
+      (r.media?.tmdbId ? `tmdb:${r.media.tmdbId}` : "?"),
+    type: r.type ?? r.media?.mediaType ?? null,
+    status: SEERR_STATUS[Number(r.status)] ?? String(r.status ?? "?"),
+    requestedBy: r.requestedBy?.displayName ?? r.requestedBy?.username ?? null,
+    createdAt: r.createdAt ?? null
+  }));
+  return {
+    version: status?.version ?? null,
+    pending: requests.filter((r) => r.status === "pending").length,
+    requests
+  };
+}
+
 export async function fetchSeerr(): Promise<ServiceResult<SeerrData>> {
   const base = trimSlash(env("SEERR_URL"));
   const key = env("SEERR_API_KEY");
@@ -468,24 +558,7 @@ export async function fetchSeerr(): Promise<ServiceResult<SeerrData>> {
       })
     );
 
-    const requests: SeerrRequest[] = top.map((r, idx) => ({
-      id: Number(r.id ?? 0),
-      title:
-        titles[idx] ??
-        r.media?.title ??
-        r.media?.name ??
-        r.media?.originalTitle ??
-        (r.media?.tmdbId ? `tmdb:${r.media.tmdbId}` : "?"),
-      type: r.type ?? r.media?.mediaType ?? null,
-      status: SEERR_STATUS[Number(r.status)] ?? String(r.status ?? "?"),
-      requestedBy: r.requestedBy?.displayName ?? r.requestedBy?.username ?? null,
-      createdAt: r.createdAt ?? null
-    }));
-    return ok({
-      version: status?.version ?? null,
-      pending: requests.filter((r) => r.status === "pending").length,
-      requests
-    });
+    return ok(normalizeSeerr(status, top, titles));
   } catch (err) {
     return fail(describe(err, (err as any)?.status));
   }

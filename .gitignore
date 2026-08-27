@@ -16,3 +16,4 @@ shots/
 
 # runtime usage log (not code)
 data/
+tsconfig.tsbuildinfo

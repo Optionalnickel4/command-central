@@ -47,6 +47,9 @@ function cleanEntity(raw: string): string {
   return (kept.length ? kept : words.slice(0, 1)).join(" ").trim();
 }
 
+/** The region codes vlr-api's ?region= filter understands. */
+const REGION_CODE = /^(gc|na|eu|emea|ap|pacific|br|kr|cn|jp|americas|china)$/i;
+
 const KINDS: LookupKind[] = [
   "player", "team", "match", "rankings", "stats", "results", "upcoming", "live", "events", "none"
 ];
@@ -68,7 +71,11 @@ export function parseIntent(message: string): Intent {
   const region = /\b(gc|na|eu|emea|ap|pacific|br|kr|cn|jp|americas|china)\b[^.]*\brank/i.exec(low)
     ?? /\brank(ing)?s?\b[^.]*\b(gc|na|eu|emea|ap|pacific|br|kr|cn|jp|americas|china)\b/i.exec(low);
   if (region) {
-    const code = (region[1] && region[1].length <= 6 ? region[1] : region[2]) ?? "";
+    // Which capture holds the region depends on which pattern matched, and the
+    // second one's group 1 is the optional "ing" of "rankings" — so pick the
+    // group that IS a region rather than the first non-empty one. Guarding on
+    // length alone let "rankings for na" resolve to the region "ing".
+    const code = [region[1], region[2]].find((g) => g && REGION_CODE.test(g)) ?? "";
     return { kind: "rankings", query: code === "emea" || code === "eu" ? "" : code, via: "keyword" };
   }
   if (/\brank(ing)?s?\b|\bstandings?\b/i.test(low)) return { kind: "rankings", query: "", via: "keyword" };

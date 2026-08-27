@@ -5,6 +5,9 @@ import { withContext } from "@/lib/context-snapshot";
 import {
   PREPASS_PROMPT, looksLikeEsports, parseIntent, parsePrepass, performLookup
 } from "@/lib/lookup-intent";
+// Request-shape validation is a pure function of the parsed body, so it lives
+// in lib/ where it can be unit-tested without an HTTP round trip.
+import { validateChatBody, type AssistantBackend } from "@/lib/chat-request";
 
 /**
  * Two assistant backends behind one interface. Both resolve to the same
@@ -18,7 +21,7 @@ import {
  * Each backend has exactly one function that talks to it — no other path in
  * the app reaches either one.
  */
-export type AssistantBackend = "sol" | "claude";
+export type { AssistantBackend };
 
 // --- Sol (OpenClaw over SSH) -------------------------------------------
 // Talks to Sol 5.5 (OpenClaw agent on 10.0.0.152) over an SSH key that's
@@ -109,15 +112,6 @@ const FAILURE_MESSAGE: Record<AssistantBackend, string> = {
   claude: "◇ Claude backend unavailable. Check the claude CLI login on this box."
 };
 
-// Ceiling on total input. Generous for real chat, but stops a garbage
-// megabyte from reaching a backend that shells out.
-const MAX_INPUT_CHARS = 10000;
-
-interface ChatMessage {
-  role: string;
-  content: string;
-}
-
 /** Terse 400 — never echo the offending input, never leak internals. */
 const badRequest = () => NextResponse.json({ error: "invalid request" }, { status: 400 });
 
@@ -132,28 +126,10 @@ export async function POST(req: Request) {
   } catch {
     return badRequest();
   }
-  if (typeof body !== "object" || body === null) return badRequest();
-  const { messages, backend } = body as { messages?: unknown; backend?: unknown };
-
-  // messages must be a non-empty array of { role: string, content: string }.
-  if (!Array.isArray(messages) || messages.length === 0) return badRequest();
-  for (const m of messages) {
-    if (typeof m !== "object" || m === null) return badRequest();
-    const { role, content } = m as { role?: unknown; content?: unknown };
-    if (typeof role !== "string" || typeof content !== "string") return badRequest();
-  }
-  const msgs = messages as ChatMessage[];
-
-  // backend is optional; when present it must be exactly one of the two names.
-  // An arbitrary string is rejected rather than silently defaulted through.
-  if (backend !== undefined && backend !== "sol" && backend !== "claude") return badRequest();
-
-  // Cap total input size before doing anything with it.
-  const totalChars = msgs.reduce((n, m) => n + m.content.length, 0);
-  if (totalChars > MAX_INPUT_CHARS) return badRequest();
-
+  const valid = validateChatBody(body);
+  if (!valid) return badRequest();
   // Claude is the default: it's the backend verified working on this box.
-  const chosen: AssistantBackend = backend === "sol" ? "sol" : "claude";
+  const { messages: msgs, backend: chosen } = valid;
 
   // Only the latest user message is sent — OpenClaw keeps its own session
   // history under the command-central session id, so we don't resend it all.
