@@ -65,14 +65,29 @@ CLAUDE_BIN=claude
 OPENCLAW_SSH_HOST=10.0.0.152
 OPENCLAW_SSH_KEY=/path/to/openclaw_agent
 OPENCLAW_STATS_KEY=/path/to/openclaw_stats
-PROJECTS_SSH_KEY=/path/to/cc_projects
-PROJECTS_TTL_MS=600000
 PIPER_URL=http://127.0.0.1:5303
 ```
 
 - The Claude backend reuses the service user's existing Claude Code login; it does not read an API key.
 - The Sol backend reaches OpenClaw through a forced-command SSH key.
-- Keep the forced commands and separate keys if reproducing this setup. The wrappers restrict agent turns, stats, and project reads independently.
+- Keep the forced commands and separate keys if reproducing this setup. The wrappers restrict agent turns and stats independently.
+- `PROJECTS_SSH_KEY` / `PROJECTS_TTL_MS` are no longer part of this list: the
+  cc-projects SSH read has been replaced by the vault mount below.
+
+### Project context (the Obsidian vault)
+
+```dotenv
+VAULT_DIR=/mnt/vault/Projects
+VAULT_TTL_MS=600000
+```
+
+The assistant's project-status context comes from a shared Obsidian vault
+bind-mounted into the container — one markdown file per project, plus an
+`_index.md`. `lib/vault.ts` reads them (read-only), trims them to the lifecycle
+lines and folds the result into the chat snapshot. This replaced an SSH read of
+a single `PROJECTS.md` on 152 through the `cc-projects` wrapper; `lib/projects.ts`
+still exists but nothing calls it. If the mount is missing the project section
+is simply absent from the snapshot.
 
 ### Esports
 

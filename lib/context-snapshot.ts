@@ -1,5 +1,5 @@
 import { formatUptime } from "@/lib/format";
-import { getProjectStatus } from "@/lib/projects";
+import { getVaultProjectStatus } from "@/lib/vault";
 import { normalizeMatch, unwrap, vlr, type VlrMatch } from "@/lib/vlr";
 import { esportsEnabled } from "@/lib/features";
 
@@ -69,10 +69,11 @@ export async function buildContextSnapshot(): Promise<string> {
           .then((raw) => unwrap<VlrMatch>(raw).map(normalizeMatch))
           .catch(() => null)
       : Promise.resolve(null),
-    // Lifecycle, not health: the canonical PROJECTS.md on 152, read over the
-    // cc-projects wrapper, cached 10min and trimmed. Returns null (section
-    // omitted) rather than throwing if 152 is slow or down.
-    getProjectStatus()
+    // Lifecycle, not health: the shared Obsidian vault on the local bind
+    // mount, cached 10min and trimmed. Replaced the cc-projects SSH read of
+    // PROJECTS.md on 152 — same context, no network hop. Returns null (section
+    // omitted) rather than throwing if the mount is absent or unreadable.
+    getVaultProjectStatus()
   ]);
 
   const lines: string[] = [];
@@ -180,13 +181,13 @@ export async function buildContextSnapshot(): Promise<string> {
     lines.push("SOL STATS: unavailable (cc-stats link not responding)");
   }
 
-  // --- Project status (lifecycle, from PROJECTS.md on 152) ---------------
+  // --- Project status (lifecycle, from the Obsidian vault mount) ---------
   // Deliberately labelled apart from everything above: "what phase is mrvl-api
   // in" is a different question from "is mrvl-api responding", and without this
   // header the model answered the second when asked the first.
   if (projects) {
     lines.push(
-      "PROJECT STATUS (lifecycle, not live health \u2014 what phase each project is in, what has shipped, what is next). Source: PROJECTS.md on 10.0.0.152, the canonical project tracker:"
+      "PROJECT STATUS (lifecycle, not live health \u2014 what phase each project is in, what has shipped, what is next). Source: the shared Obsidian vault at /mnt/vault/Projects, the canonical project tracker, one file per project:"
     );
     lines.push(projects);
   }

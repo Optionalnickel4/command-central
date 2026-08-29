@@ -1,6 +1,18 @@
 import { execFile } from "child_process";
 
 /**
+ * RETIRED — nothing in the app calls this module any more.
+ *
+ * Project-status context now comes from the shared Obsidian vault on the local
+ * bind mount (lib/vault.ts), which the context snapshot reads instead. Same
+ * context, no SSH round trip to 152, no third restricted key in the request
+ * path, and richer per-project files instead of one combined document.
+ *
+ * Kept in the tree (with its tests) because the wrapper and key still exist on
+ * 152 and this is the only record of how they were driven — deleting it would
+ * make re-wiring the SSH read a rewrite rather than a one-line import swap. If
+ * the cc-projects key is retired on 152, this file can go with it.
+ *
  * PROJECT STATUS feed — the canonical PROJECTS.md that lives on LXC 152.
  *
  * PROJECTS.md is a FILE on 152, not an HTTP endpoint, so it is read over SSH
