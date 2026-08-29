@@ -1,5 +1,6 @@
-import { readdir, readFile } from "fs/promises";
+import { appendFile, readdir, readFile, stat } from "fs/promises";
 import { resolve, sep } from "path";
+import { formatBullet, sanitizeBulletText } from "@/lib/vault-write";
 
 /**
  * PROJECT STATUS feed — the shared Obsidian vault, read straight off the local
@@ -11,9 +12,8 @@ import { resolve, sep } from "path";
  * restricted key to maintain, and the richer per-project files are available
  * instead of one combined PROJECTS.md.
  *
- * Read-only by design. The mount is writable, but write-back is a separate
- * stage with its own two-writer discipline (Obsidian on Mew and OpenClaw on 152
- * both edit these files); nothing here opens a file for writing.
+ * Reads are the bulk of this module; the one write path, appendBullet, is
+ * APPEND-ONLY and is documented at its own definition below.
  *
  * This rides on the chat snapshot, which is rebuilt on EVERY message, so:
  *   * the parsed set is cached in-process for 10 minutes,
@@ -141,6 +141,99 @@ export async function readProject(name: string): Promise<string | null> {
 /** Test/diagnostic helper — forces the next read to go back to the mount. */
 export function clearVaultCache(): void {
   cache = null;
+}
+
+// --- Append (the only write path) -----------------------------------------
+
+/**
+ * THREE writers touch these files: this app, OpenClaw on 152, and the human in
+ * Obsidian on Mew over Samba. All three can write at any moment.
+ *
+ * That is why this is the only write in the codebase and why it is APPEND-ONLY.
+ * A read-modify-write — load the file, splice a line in, write it back — loses
+ * whatever the other two wrote in between, silently. Opening with O_APPEND and
+ * issuing ONE write instead hands the kernel the job of placing the bytes at
+ * the current end of file, so a concurrent append lands after ours rather than
+ * on top of it, and existing content is never rewritten at all.
+ *
+ * Consequences accepted deliberately:
+ *   * No dedupe across writers. Detecting "this bullet already exists" needs a
+ *     read-modify-write to be race-free; a duplicate dated bullet is harmless
+ *     and a lost edit is not.
+ *   * The file IS read first, to decide whether a `## Log` heading is needed
+ *     and whether the file ends in a newline. Reading is not the dangerous
+ *     half — nothing existing is ever rewritten. The worst a race does here is
+ *     produce two `## Log` headings, which is cosmetic.
+ */
+
+/** Where dated bullets live. Its own section, at the end of the file. */
+const LOG_HEADING = "## Log";
+
+export interface AppendResult {
+  ok: boolean;
+  /** The exact line written. Authoritative — the UI previews, this decides. */
+  line?: string;
+  error?: string;
+}
+
+/**
+ * Append one dated bullet to a project note.
+ *
+ * Bullets go under a `## Log` section rather than at the raw end of file,
+ * because five of the six notes END with `## Open items / TODO` — appending to
+ * EOF would file every log entry as an outstanding task. The heading is added
+ * by the same single append when the file does not already end in that
+ * section, so the write stays one syscall and never rewrites a byte.
+ *
+ * A well-formed name whose file does not exist is REJECTED, not created: the
+ * vault is a human-curated Obsidian folder, and a typo should not litter it
+ * with a new note.
+ */
+export async function appendBullet(name: string, text: string): Promise<AppendResult> {
+  // The read guard, reused — path validation lives in exactly one place.
+  const path = resolveProjectPath(name);
+  if (!path) return { ok: false, error: "invalid project name" };
+
+  const body = sanitizeBulletText(text);
+  if (!body) return { ok: false, error: "empty bullet text" };
+
+  const line = formatBullet(body);
+
+  try {
+    // Existence is checked on disk, not through the cache: the cache can be up
+    // to a TTL stale, and creating a note by accident is the thing to avoid.
+    const info = await stat(path);
+    if (!info.isFile()) return { ok: false, error: "not a project note" };
+
+    const current = await readFile(path, "utf8");
+    const needsNewline = current.length > 0 && !current.endsWith("\n");
+    // Is `## Log` the LAST heading? If the human added a section after it, a
+    // plain EOF append would land the bullet in their section instead.
+    const headings = current.match(/^#{1,6} .*$/gm) ?? [];
+    const inLogSection = headings[headings.length - 1]?.trim() === LOG_HEADING;
+
+    const block =
+      (needsNewline ? "\n" : "") +
+      (inLogSection ? "" : `${current.length ? "\n" : ""}${LOG_HEADING}\n\n`) +
+      `${line}\n`;
+
+    // ONE call, O_APPEND: the kernel places these bytes at the current end of
+    // file. No truncation, no offset we chose, nothing existing touched.
+    await appendFile(path, block, { encoding: "utf8", flag: "a" });
+
+    // The new bullet must be visible to /vault and to the chat snapshot now,
+    // not in up to TTL_MS. Cheap: the next read re-loads six small files.
+    clearVaultCache();
+    return { ok: true, line };
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException)?.code;
+    console.warn("vault append failed:", code ?? err, `(${name})`);
+    if (code === "ENOENT") return { ok: false, error: "no such project note" };
+    if (code === "EACCES" || code === "EPERM" || code === "EROFS") {
+      return { ok: false, error: "vault is not writable" };
+    }
+    return { ok: false, error: "vault write failed" };
+  }
 }
 
 // --- Trim -----------------------------------------------------------------
