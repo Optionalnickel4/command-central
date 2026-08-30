@@ -88,3 +88,20 @@ export function esportsGate(enabled: boolean, configured: boolean): EsportsGate 
   if (!configured) return { ready: false, status: NOT_PRESENT, error: "esports not configured" };
   return { ready: true };
 }
+
+/**
+ * The config-state code for a plain single-source panel (weather, news,
+ * calendar) whose only configuration is env vars — the same distinction
+ * esportsGate draws, for features that have no enable flag to weigh.
+ *
+ * "Never configured" and "configured but the upstream is down" are different
+ * situations, and only the second is a 503. A panel that was never pointed at
+ * anything isn't broken, it's waiting to be set up: 404, so the widget renders
+ * a calm "configure me" state instead of an alarm.
+ *
+ * Pure, and takes the boolean rather than reading env itself, so each feature
+ * keeps its own has*Config() helper as the single place that knows the vars.
+ */
+export function configStatus(configured: boolean): number {
+  return configured ? OK : NOT_PRESENT;
+}
