@@ -86,7 +86,6 @@ export default function AssistantPanel() {
   useEffect(() => () => {
     if (idleTimer.current) clearTimeout(idleTimer.current);
     stopAudio();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /** Stop and release any in-flight narration. */
@@ -128,7 +127,7 @@ export default function AssistantPanel() {
 
   // Expose this console's send to the command bar. Held through a ref so the
   // registered function is always the current render's closure.
-  const sendRef = useRef<(text?: string) => void>();
+  const sendRef = useRef<((text?: string) => void) | null>(null);
   sendRef.current = send;
   useEffect(() => {
     registerSubmit((text: string) => sendRef.current?.(text));

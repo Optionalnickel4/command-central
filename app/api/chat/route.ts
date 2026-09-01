@@ -9,6 +9,15 @@ import {
 // in lib/ where it can be unit-tested without an HTTP round trip.
 import { validateChatBody, type AssistantBackend } from "@/lib/chat-request";
 import { BAD_UPSTREAM } from "@/lib/response-status";
+import {
+  ConcurrencyGate,
+  JSON_LIMITS,
+  RateLimiter,
+  readJsonBody,
+  requestIdentity,
+  tooManyRequests,
+  validateJsonMutation
+} from "@/lib/request-security";
 
 /**
  * Two assistant backends behind one interface. Both resolve to the same
@@ -34,6 +43,8 @@ const OPENCLAW_KEY = process.env.OPENCLAW_SSH_KEY || "/root/.ssh/openclaw_agent"
 
 const TIMEOUT_MS = 120000;
 const MAX_BUFFER = 1024 * 1024;
+const CHAT_RATE = new RateLimiter(6, 60_000);
+const CHAT_CONCURRENCY = new ConcurrencyGate(2);
 
 /** Reply text plus the numeric usage meta from the same --json payload. */
 interface SolResult {
@@ -91,6 +102,7 @@ const CLAUDE_BIN = process.env.CLAUDE_BIN || "claude";
 function runClaude(message: string): Promise<string> {
   return new Promise((resolve, reject) => {
     execFile(
+      /* turbopackIgnore: true */
       CLAUDE_BIN,
       // execFile does not use a shell, so the message is never interpreted by
       // one. The `--` guard additionally stops a message that starts with "-"
@@ -116,17 +128,15 @@ const FAILURE_MESSAGE: Record<AssistantBackend, string> = {
 /** Terse 400 — never echo the offending input, never leak internals. */
 const badRequest = () => NextResponse.json({ error: "invalid request" }, { status: 400 });
 
-export async function POST(req: Request) {
+async function handlePost(req: Request) {
   // Validate the request shape BEFORE any work. This is the one surface that
   // shells out (execFile to claude / the SSH wrapper), so a malformed or
   // oversized body is rejected here — cheaply, ahead of the context snapshot
   // and either backend — rather than handled by assumption downstream.
   let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return badRequest();
-  }
+  const parsedBody = await readJsonBody(req, JSON_LIMITS.chat);
+  if (!parsedBody.ok) return parsedBody.response;
+  body = parsedBody.value;
   const valid = validateChatBody(body);
   if (!valid) return badRequest();
   // Claude is the default: it's the backend verified working on this box.
@@ -237,5 +247,20 @@ export async function POST(req: Request) {
       reply: detail ? `◇ ${BACKEND_NAME[chosen]} replied with an error: ${detail}` : FAILURE_MESSAGE[chosen],
       backend: chosen
     }, { status: BAD_UPSTREAM });
+  }
+}
+
+export async function POST(req: Request) {
+  const rejected = validateJsonMutation(req);
+  if (rejected) return rejected;
+
+  if (!CHAT_RATE.allow(requestIdentity(req))) return tooManyRequests("chat rate limit exceeded");
+  const release = CHAT_CONCURRENCY.tryAcquire();
+  if (!release) return tooManyRequests("assistant is busy");
+
+  try {
+    return await handlePost(req);
+  } finally {
+    release();
   }
 }

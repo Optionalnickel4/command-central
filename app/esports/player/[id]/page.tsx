@@ -15,10 +15,11 @@ export const metadata = {
  * refresh renders blank, because layout.tsx holds every `.power-on` panel at
  * frame 0 until something clears the boot gate.
  */
-export default function PlayerPage({ params }: { params: { id: string } }) {
+export default async function PlayerPage({ params }: { params: Promise<{ id: string }> }) {
   // With esports off there are no leaderboard rows to reach this from; the 404
   // is for a direct hit on a stale link, so it never renders a dead radar.
   if (!esportsEnabled()) notFound();
+  const { id } = await params;
 
   return (
     <>
@@ -34,7 +35,7 @@ export default function PlayerPage({ params }: { params: { id: string } }) {
         <header className="flex items-center justify-between gap-4 pb-3">
           <div className="flex items-center gap-3 min-w-0">
             <BackLink />
-            <PlayerHeader id={params.id} />
+            <PlayerHeader id={id} />
           </div>
           <div className="flex items-center gap-4">
             <span className="hidden sm:flex items-center gap-2 font-mono text-[9.5px] uppercase tracking-[0.28em] hud-glow-text border border-cyan-500/30 rounded px-2 py-1">
@@ -59,7 +60,7 @@ export default function PlayerPage({ params }: { params: { id: string } }) {
           </svg>
         </div>
 
-        <PlayerDetail id={params.id} />
+        <PlayerDetail id={id} />
       </main>
 
       <div className="hud-vignette" />

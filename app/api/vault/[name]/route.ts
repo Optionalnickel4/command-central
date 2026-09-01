@@ -1,6 +1,14 @@
 import { NextResponse } from "next/server";
 import { appendBullet, readProject } from "@/lib/vault";
 import { INTERNAL_ERROR, NOT_PRESENT, OK } from "@/lib/response-status";
+import {
+  JSON_LIMITS,
+  RateLimiter,
+  readJsonBody,
+  requestIdentity,
+  tooManyRequests,
+  validateJsonMutation
+} from "@/lib/request-security";
 
 export const dynamic = "force-dynamic";
 
@@ -23,13 +31,14 @@ export interface VaultNote {
  * — a caller probing for what exists outside the vault learns nothing from the
  * status code, and neither case is a server failure.
  */
-export async function GET(_req: Request, { params }: { params: { name: string } }) {
+export async function GET(_req: Request, { params }: { params: Promise<{ name: string }> }) {
+  const { name } = await params;
   try {
-    const content = await readProject(params.name);
+    const content = await readProject(name);
     if (content === null) {
       return NextResponse.json({ error: "no such project note" }, { status: NOT_PRESENT });
     }
-    return NextResponse.json<VaultNote>({ name: params.name, content });
+    return NextResponse.json<VaultNote>({ name, content });
   } catch (err) {
     console.error("vault note read failed:", err instanceof Error ? err.message : err);
     return NextResponse.json({ error: "vault read failed" }, { status: INTERNAL_ERROR });
@@ -46,6 +55,8 @@ export interface VaultAppendResult {
   line: string;
 }
 
+const VAULT_WRITE_RATE = new RateLimiter(12, 60_000);
+
 /**
  * Append one dated bullet to a project note. THE ONLY WRITE ENDPOINT.
  *
@@ -61,20 +72,22 @@ export interface VaultAppendResult {
  * Statuses: 400 for a body with no usable text, 404 for a rejected name or a
  * note that does not exist, 5xx when the vault itself refused the write.
  */
-export async function POST(req: Request, { params }: { params: { name: string } }) {
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "expected a JSON body" }, { status: 400 });
-  }
+export async function POST(req: Request, { params }: { params: Promise<{ name: string }> }) {
+  const rejected = validateJsonMutation(req);
+  if (rejected) return rejected;
+  if (!VAULT_WRITE_RATE.allow(requestIdentity(req))) return tooManyRequests("vault write rate limit exceeded");
+
+  const parsedBody = await readJsonBody(req, JSON_LIMITS.vault);
+  if (!parsedBody.ok) return parsedBody.response;
+  const body = parsedBody.value;
 
   const text = (body as VaultAppendBody | null)?.text;
   if (typeof text !== "string" || !text.trim()) {
     return NextResponse.json({ error: "text is required" }, { status: 400 });
   }
 
-  const result = await appendBullet(params.name, text);
+  const { name } = await params;
+  const result = await appendBullet(name, text);
 
   if (!result.ok) {
     // A bad name and a missing note are both 404 — same reasoning as the GET,
@@ -90,7 +103,7 @@ export async function POST(req: Request, { params }: { params: { name: string } 
   }
 
   return NextResponse.json<VaultAppendResult>(
-    { name: params.name, line: result.line! },
+    { name, line: result.line! },
     { status: OK }
   );
 }

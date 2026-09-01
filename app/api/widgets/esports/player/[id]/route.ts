@@ -84,7 +84,7 @@ const unavailable = (id: string) =>
     { status: UPSTREAM_UNAVAILABLE }
   );
 
-export async function GET(_req: Request, ctx: { params: { id: string } }) {
+export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   // One gate, two different meanings: esports switched off, or switched on but
   // with no VLR_API_URL yet. Both are "not part of this instance" (404), not a
   // failure — a 503 is reserved for a vlr-api that IS configured and is down.
@@ -93,7 +93,8 @@ export async function GET(_req: Request, ctx: { params: { id: string } }) {
 
   // An id with no digits in it is a bad request, not a config or upstream
   // problem — unchanged from before this split.
-  const id = String(ctx.params.id ?? "").replace(/\D/g, "");
+  const { id: rawId } = await ctx.params;
+  const id = String(rawId ?? "").replace(/\D/g, "");
   if (!id) return unavailable(id);
 
   try {

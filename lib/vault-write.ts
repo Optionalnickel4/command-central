@@ -32,7 +32,6 @@ export const MAX_BULLET_TEXT = 500;
  */
 export function sanitizeBulletText(raw: string): string {
   const flat = String(raw ?? "")
-    // eslint-disable-next-line no-control-regex
     .replace(/[\u0000-\u001f\u007f]+/g, " ")
     .replace(/\s+/g, " ")
     .replace(/^\s*[-*+]\s+/, "")

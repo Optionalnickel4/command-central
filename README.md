@@ -2,9 +2,9 @@
 
 A self-hosted JARVIS-style dashboard for a homelab. It brings live Proxmox status, an AI assistant with voice, OpenClaw agent stats, read-only media services, and Valorant esports into one HUD.
 
-Built with Next.js 14 (App Router), TypeScript, and Tailwind. There is no database: each panel polls its own server-side API route and fails independently when its backend is unavailable.
+Built with Next.js 16 (App Router), TypeScript, and Tailwind. There is no database: each panel polls its own server-side API route and fails independently when its backend is unavailable.
 
-> **Personal infrastructure, not a drop-in product.** This repo is tailored to one homelab and has no authentication. Run it on a trusted LAN or tailnet; do not expose it directly to the internet.
+> **Personal infrastructure, not a drop-in product.** Production fails closed unless Cloudflare Access authentication is configured or trusted-network mode is explicitly selected. Do not expose trusted-network mode directly to the internet.
 
 ## What works
 
@@ -15,13 +15,13 @@ Built with Next.js 14 (App Router), TypeScript, and Tailwind. There is no databa
 - **Media** — read-only Jellyfin, Sonarr, Radarr, Prowlarr, qBittorrent, and Jellyseerr
 - **Esports** — scoreboard, standings, stats, ticker, and player radar via [vlr-api](https://github.com/Optionalnickel4/vlr-api)
 
-Weather, calendar, and news cards are currently mock data. Their environment variables are placeholders and are not read by the app yet.
+Weather, calendar, and news use live Open-Meteo, Google Calendar, and RSS sources.
 
 Every integration is optional. Missing credentials produce an unavailable card instead of taking down the dashboard.
 
 ## Quick start
 
-Requirements: Node.js 18.17+ (22 recommended) and npm.
+Requirements: Node.js 20.9+ (22 recommended) and npm.
 
 ```bash
 git clone https://github.com/Optionalnickel4/command-central
@@ -45,6 +45,32 @@ A rebuild is required for changes to appear under `next start`.
 ## Configuration
 
 Copy `.env.example`; only the variables below are currently read.
+
+### Authentication and request security
+
+`npm start` defaults to `cloudflare-access` mode and returns 503 until both
+Cloudflare identifiers are configured:
+
+```dotenv
+APP_AUTH_MODE=cloudflare-access
+CF_ACCESS_TEAM_DOMAIN=https://your-team.cloudflareaccess.com
+CF_ACCESS_AUD=your-application-aud
+APP_ALLOWED_ORIGINS=https://jarvis.jushosting.dev
+```
+
+The Access assertion is verified locally against Cloudflare's signed JWKS; a
+spoofed header sent directly to the origin is not trusted. `APP_ALLOWED_ORIGINS`
+is a comma-separated exact allowlist for mutation requests.
+
+For a service firewalled to a trusted LAN or tailnet, opt out deliberately:
+
+```dotenv
+APP_AUTH_MODE=trusted-network
+```
+
+Development (`npm run dev`) defaults to unauthenticated local access. Chat,
+voice, and vault writes require same-origin `application/json`, enforce bounded
+streaming bodies, and carry per-user rate and global concurrency limits.
 
 ### Proxmox
 

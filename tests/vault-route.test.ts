@@ -13,7 +13,7 @@ import { GET as getIndex } from "@/app/api/vault/route";
  */
 
 const req = new Request("http://127.0.0.1:3000/api/vault/x");
-const call = (name: string) => getNote(req, { params: { name } });
+const call = (name: string) => getNote(req, { params: Promise.resolve({ name }) });
 
 describe("GET /api/vault/[name] — the guard at the route layer", () => {
   const rejected = [

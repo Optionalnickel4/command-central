@@ -43,7 +43,7 @@ const TTL_MS = Number(process.env.VAULT_TTL_MS) > 0
 const SAFE_NAME = /^[A-Za-z0-9_-]+$/;
 
 /** Guard against a symlinked or oddly-cased VAULT_DIR by comparing resolved paths. */
-const ROOT = resolve(VAULT_DIR);
+const ROOT = resolve(/* turbopackIgnore: true */ VAULT_DIR);
 
 /**
  * The absolute path of one project file, or null if `name` is not a plain
@@ -74,7 +74,7 @@ let inflight: Promise<VaultCache> | null = null;
 async function load(): Promise<VaultCache> {
   const files = new Map<string, string>();
   try {
-    const entries = await readdir(ROOT);
+    const entries = await readdir(/* turbopackIgnore: true */ ROOT);
     const names = entries
       .filter((e) => !e.startsWith(".") && e.toLowerCase().endsWith(".md"))
       .map((e) => e.slice(0, -3))

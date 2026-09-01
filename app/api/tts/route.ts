@@ -1,4 +1,13 @@
 import { NextResponse } from "next/server";
+import {
+  ConcurrencyGate,
+  JSON_LIMITS,
+  RateLimiter,
+  readJsonBody,
+  requestIdentity,
+  tooManyRequests,
+  validateJsonMutation
+} from "@/lib/request-security";
 
 /**
  * Text-to-speech proxy for the local Piper service.
@@ -18,17 +27,34 @@ const PIPER_URL = process.env.PIPER_URL || "http://127.0.0.1:5303";
 // request keeping Piper busy. Replies are no longer truncated.
 const MAX_CHARS = 500;
 const TIMEOUT_MS = 60000;
+const TTS_RATE = new RateLimiter(30, 60_000);
+const TTS_CONCURRENCY = new ConcurrencyGate(2);
 
 export async function POST(req: Request) {
+  const rejected = validateJsonMutation(req);
+  if (rejected) return rejected;
+  if (!TTS_RATE.allow(requestIdentity(req))) return tooManyRequests("voice rate limit exceeded");
+  const release = TTS_CONCURRENCY.tryAcquire();
+  if (!release) return tooManyRequests("voice service is busy");
+
   let text = "";
+  const parsedBody = await readJsonBody(req, JSON_LIMITS.tts);
+  if (!parsedBody.ok) {
+    release();
+    return parsedBody.response;
+  }
   try {
-    const body = await req.json();
+    const body = parsedBody.value as { text?: unknown } | null;
     text = String(body?.text ?? "").trim();
   } catch {
+    release();
     return NextResponse.json({ error: "bad request" }, { status: 400 });
   }
 
-  if (!text) return NextResponse.json({ error: "empty text" }, { status: 400 });
+  if (!text) {
+    release();
+    return NextResponse.json({ error: "empty text" }, { status: 400 });
+  }
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
@@ -58,5 +84,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "voice unavailable" }, { status: 503 });
   } finally {
     clearTimeout(timer);
+    release();
   }
 }
