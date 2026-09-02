@@ -10,6 +10,31 @@ running as a systemd service on this box. Read this fully before changing anythi
   - `systemctl restart command-central` to apply changes (after `npm run build`).
   - `journalctl -u command-central -n 50 --no-pager` for logs.
 - LAN-only, no auth, not internet-facing. Do not add auth or expose it.
+  (Superseded — see *Auth model* below. Auth was added on the SOL-AUDITS branch.)
+
+## Auth model
+
+The app is **fail-closed**. `proxy.ts` verifies a Cloudflare Access JWT
+(`cf-access-jwt-assertion` header or the `CF_Authorization` cookie) on every
+request and returns `401` without one, so an unauthenticated request — a
+loopback `curl` included — correctly gets `401 {"error":"unauthorized"}`, while
+a browser carrying a valid Access JWT gets data as normal. `APP_AUTH_MODE`
+selects the mode (`cloudflare-access` | `trusted-network` | `off`); production
+defaults to `cloudflare-access`. This also means the "serves 200 at
+localhost:3000" check under *Testing your work* is now a 200 only for an
+authenticated request.
+
+Internal consumers do NOT go through the HTTP routes. The assistant's context
+snapshot calls the `lib/` data functions (`fetchHomelab()`, `fetchHomelabDetail()`,
+`fetchEsportsMatches()`, `fetchSolStatus()`, `fetchSolUsage()`) directly, which
+is why it reads live data while the routes stay locked. The API routes exist for
+the browser.
+
+**Never weaken auth to make a 401 go away** — no trusting `127.0.0.1`/loopback,
+no internal bypass token, no exempting `/api/widgets/*` from the matcher. A 401
+on an unauthenticated request is the security layer doing its job. If new
+server-side code needs data, import the `lib/` function the route wraps; if that
+is genuinely impossible for some source, stop and ask rather than opening a hole.
 
 ## Golden rules (don't break these)
 
@@ -29,9 +54,21 @@ running as a systemd service on this box. Read this fully before changing anythi
    gitignored — keep it that way.
 4. **Always `npm run build` before restarting the service.** The service runs
    `next start` (production), not dev — an unbuilt change won't show.
-5. After any change, verify: `npm run build` passes, then
-   `curl -s localhost:3000/api/widgets/homelab | head -c 80` still returns
-   `"status":"ok"` with real data. Don't leave the homelab panel broken.
+5. After any change, verify `npm run build` passes, then check the data path —
+   but read the *Auth model* section first, because the obvious curl now 401s
+   **by design**:
+   - `curl -i localhost:3000/api/widgets/homelab` → expect **401
+     `{"error":"unauthorized"}`**. That is the auth layer working. A `200` here
+     would mean auth is bypassed and is the actual failure to chase.
+   - For the DATA path, run a throwaway instance in LAN-trust mode and curl
+     that: `APP_AUTH_MODE=trusted-network npx next start -p 3001`, then
+     `curl -s localhost:3001/api/widgets/homelab | head -c 80` → `"status":"ok"`
+     with real data. Stop it by port afterwards; `pkill -f "next start"` also
+     matches the production service and will take the dashboard down.
+   - Or skip HTTP entirely and call the data function the route wraps
+     (`fetchHomelab()` in `lib/homelab.ts`) — the same path the assistant's
+     snapshot uses.
+   Don't leave the homelab panel broken. Never "fix" a 401 by weakening auth.
 
 ## Architecture
 
