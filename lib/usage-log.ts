@@ -124,3 +124,77 @@ export async function readTurns(limit = MAX_TURNS): Promise<UsageTurn[]> {
 }
 
 export const USAGE_LIMITS = { MAX_TURNS, COMPACT_AT };
+
+export interface SolUsageData {
+  turns: UsageTurn[];
+  totals: {
+    turns: number;
+    solTurns: number;
+    input: number;
+    output: number;
+    total: number;
+    cacheRead: number;
+    failures: number;
+  };
+  /** Averages across turns that actually reported numbers. */
+  averages: { durationMs: number | null; totalTokens: number | null; cacheHitPct: number | null };
+  latest: UsageTurn | null;
+  cap: number;
+}
+
+export const EMPTY_SOL_USAGE: SolUsageData = {
+  turns: [],
+  totals: { turns: 0, solTurns: 0, input: 0, output: 0, total: 0, cacheRead: 0, failures: 0 },
+  averages: { durationMs: null, totalTokens: null, cacheHitPct: null },
+  latest: null,
+  cap: MAX_TURNS
+};
+
+const sum = (rows: UsageTurn[], pick: (t: UsageTurn) => number | null) =>
+  rows.reduce((a, t) => a + (pick(t) ?? 0), 0);
+
+const avg = (rows: UsageTurn[], pick: (t: UsageTurn) => number | null): number | null => {
+  const vals = rows.map(pick).filter((v): v is number => v != null);
+  return vals.length ? vals.reduce((a, v) => a + v, 0) / vals.length : null;
+};
+
+/**
+ * Roll the log up into the shape the usage panels render.
+ *
+ * Pure given the rows, so /api/sol/usage and the assistant's context snapshot
+ * share one definition of these numbers. The snapshot calls this (via
+ * fetchSolUsage) instead of fetching the route over loopback — a self-fetch
+ * carries no Access JWT and is 401'd by the auth layer.
+ */
+export function summarizeTurns(turns: UsageTurn[]): SolUsageData {
+  const sol = turns.filter((t) => t.backend === "sol");
+
+  const cacheRead = sum(sol, (t) => t.cacheRead);
+  const totalTokens = sum(sol, (t) => t.totalTokens);
+
+  return {
+    turns,
+    totals: {
+      turns: turns.length,
+      solTurns: sol.length,
+      input: sum(sol, (t) => t.inputTokens),
+      output: sum(sol, (t) => t.outputTokens),
+      total: totalTokens,
+      cacheRead,
+      failures: turns.filter((t) => !t.ok).length
+    },
+    averages: {
+      durationMs: avg(turns, (t) => t.durationMs),
+      totalTokens: avg(sol, (t) => t.totalTokens),
+      // Share of billed input that came from cache rather than fresh prompt.
+      cacheHitPct: totalTokens > 0 ? (cacheRead / totalTokens) * 100 : null
+    },
+    latest: turns.length ? turns[turns.length - 1] : null,
+    cap: MAX_TURNS
+  };
+}
+
+/** Read the log and roll it up. Throws only if the read itself throws. */
+export async function fetchSolUsage(): Promise<SolUsageData> {
+  return summarizeTurns(await readTurns());
+}

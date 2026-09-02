@@ -2,24 +2,34 @@ import { formatUptime } from "@/lib/format";
 import { getVaultProjectStatus } from "@/lib/vault";
 import { normalizeMatch, unwrap, vlr, type VlrMatch } from "@/lib/vlr";
 import { esportsEnabled } from "@/lib/features";
+import { fetchHomelab, fetchHomelabDetail, type HomelabData, type HomelabDetailData } from "@/lib/homelab";
+import { fetchEsportsMatches, fetchEsportsRankings, type EsportsMatchesData, type EsportsRankingsData } from "@/lib/esports";
+import { fetchSolStatus, type SolStatusData } from "@/lib/sol-status";
+import { fetchSolUsage, type SolUsageData } from "@/lib/usage-log";
 
 /**
  * Compact live snapshot of the dashboard, prepended to every chat turn so the
  * assistant can answer about the homelab, esports and its own stats instead of
  * saying it can't see them.
  *
- * Built by reusing the dashboard's OWN routes over loopback — they already do
- * the fetching, shaping and privacy-stripping, and several carry server-side
- * caches, so this adds almost nothing per turn. No new SSH scope, no new
- * secrets, and nothing here is written to disk.
+ * Built by calling the dashboard's OWN data functions — the same ones its API
+ * routes call, so the shaping, privacy-stripping and server-side caches are
+ * shared and this adds almost nothing per turn.
+ *
+ * It deliberately does NOT fetch those routes over loopback, which is how this
+ * was first written. The server calling itself carries no Cloudflare Access
+ * JWT, so the auth layer rightly 401s it and every source read "unavailable"
+ * while the browser's panels showed live data. Calling the function never
+ * becomes an HTTP request, so the auth gate never applies — and the routes stay
+ * fully protected for the browser. Do not reintroduce a self-fetch here.
+ *
+ * No new SSH scope, no new secrets, and nothing here is written to disk.
  *
  * Budget: a few hundred tokens. It rides on EVERY message, so it is a digest of
  * numbers and states — never raw API payloads.
  */
 
-const PORT = process.env.PORT || "3000";
-const BASE = `http://127.0.0.1:${PORT}`;
-// Most sources answer in <200ms. The Sol status route SSHes to 152 on a cold
+// Most sources answer in <200ms. The Sol status read SSHes to 152 on a cold
 // cc-stats cache and measured 4.1s (0.01s warm), so it gets its own budget —
 // a shared 3.5s cap was silently dropping it as "unavailable".
 const SOURCE_TIMEOUT_MS = 3000;
@@ -29,18 +39,24 @@ const CACHE_MS = 8000;
 
 let cache: { at: number; text: string } | null = null;
 
-async function grab<T>(path: string, timeoutMs = SOURCE_TIMEOUT_MS): Promise<T | null> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
+/**
+ * Per-source degradation: null when the source throws or outruns its budget,
+ * exactly as a non-200 used to mean. One dead source never breaks the snapshot.
+ *
+ * A source that overruns is abandoned, not cancelled — the underlying work
+ * (an SSH round trip, a PVE fan-out) finishes into its own cache and the next
+ * turn gets it warm.
+ */
+async function source<T>(load: () => Promise<T>, timeoutMs = SOURCE_TIMEOUT_MS): Promise<T | null> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const budget = new Promise<null>((resolve) => {
+    timer = setTimeout(() => resolve(null), timeoutMs);
+  });
   try {
-    const res = await fetch(`${BASE}${path}`, { signal: controller.signal, cache: "no-store" });
-    if (!res.ok) return null;
-    const json = await res.json();
-    // Every widget route wraps its payload and flags its own degraded state.
-    if (json?.status === "error") return null;
-    return (json?.data ?? null) as T;
-  } catch {
-    return null;
+    return await Promise.race([
+      Promise.resolve().then(load).catch(() => null),
+      budget
+    ]);
   } finally {
     clearTimeout(timer);
   }
@@ -55,13 +71,13 @@ export async function buildContextSnapshot(): Promise<string> {
   // attempted, so a turn costs nothing and injects no "unavailable" noise.
   const esports = esportsEnabled();
 
-  const [homelab, detail, matches, rankings, solStatus, usage, results, projects] = await Promise.all([
-    grab<any>("/api/widgets/homelab"),
-    grab<any>("/api/widgets/homelab-detail"),
-    esports ? grab<any>("/api/widgets/esports/matches") : Promise.resolve(null),
-    esports ? grab<any>("/api/widgets/esports/rankings") : Promise.resolve(null),
-    grab<any>("/api/sol/status", SLOW_SOURCE_TIMEOUT_MS),
-    grab<any>("/api/sol/usage"),
+  const [homelab, detailEnvelope, matches, rankings, solStatus, usage, results, projects] = await Promise.all([
+    source<HomelabData>(fetchHomelab),
+    source(fetchHomelabDetail),
+    esports ? source<EsportsMatchesData>(fetchEsportsMatches) : Promise.resolve(null),
+    esports ? source<EsportsRankingsData>(fetchEsportsRankings) : Promise.resolve(null),
+    source<SolStatusData>(fetchSolStatus, SLOW_SOURCE_TIMEOUT_MS),
+    source<SolUsageData>(fetchSolUsage),
     // No widget route exposes results, so read them straight from vlr-api
     // (same client the panels use). Failure just drops the RECENT lines.
     esports
@@ -75,6 +91,10 @@ export async function buildContextSnapshot(): Promise<string> {
     // omitted) rather than throwing if the mount is absent or unreadable.
     getVaultProjectStatus()
   ]);
+
+  // The detail read is cached with the moment it was produced; only the numbers
+  // matter here.
+  const detail: HomelabDetailData | null = detailEnvelope?.data ?? null;
 
   const lines: string[] = [];
   const alerts: string[] = [];

@@ -1,18 +1,18 @@
 import { NextResponse } from "next/server";
 import type { WidgetResponse } from "@/components/widgets/types";
-import { hasVlrConfig, normalizeMatch, unwrap, vlr, type Match, type VlrMatch } from "@/lib/vlr";
+// Shaping lives in lib/esports.ts, shared with the assistant's context
+// snapshot, which calls it rather than fetching this route over loopback
+// (a self-fetch carries no Access JWT and is 401'd by the auth layer).
+import { EMPTY_MATCHES, fetchEsportsMatches, type EsportsMatchesData } from "@/lib/esports";
+import { hasVlrConfig } from "@/lib/vlr";
 import { esportsEnabled } from "@/lib/features";
 import { UPSTREAM_UNAVAILABLE, esportsGate } from "@/lib/response-status";
 
 // vlr-api lives on another box and can vanish; this route always resolves.
 export const dynamic = "force-dynamic";
 
-export interface EsportsMatchesData {
-  live: Match[];
-  upcoming: Match[];
-}
-
-const EMPTY: EsportsMatchesData = { live: [], upcoming: [] };
+// The panels import this type from the route, as they do for every widget.
+export type { EsportsMatchesData };
 
 // vlr-api is this route's only source, so a failed call leaves nothing to
 // render: 503, with the WidgetResponse body kept so the panel still shows its
@@ -20,7 +20,7 @@ const EMPTY: EsportsMatchesData = { live: [], upcoming: [] };
 // "not part of this instance", not a failure.
 function fail(): NextResponse {
   return NextResponse.json(
-    { status: "error", updatedAt: new Date().toISOString(), data: EMPTY } satisfies WidgetResponse<EsportsMatchesData>,
+    { status: "error", updatedAt: new Date().toISOString(), data: EMPTY_MATCHES } satisfies WidgetResponse<EsportsMatchesData>,
     { status: UPSTREAM_UNAVAILABLE }
   );
 }
@@ -33,19 +33,10 @@ export async function GET() {
   if (!gate.ready) return NextResponse.json({ error: gate.error }, { status: gate.status });
 
   try {
-    // Upcoming is always fetched: it's the fallback hero when nothing is live.
-    const [liveRaw, upcomingRaw] = await Promise.all([
-      vlr<unknown>("/matches/live"),
-      vlr<unknown>("/matches/upcoming")
-    ]);
-
-    const live = unwrap<VlrMatch>(liveRaw).map(normalizeMatch);
-    const upcoming = unwrap<VlrMatch>(upcomingRaw).map(normalizeMatch).slice(0, 12);
-
     return NextResponse.json({
       status: "ok",
       updatedAt: new Date().toISOString(),
-      data: { live, upcoming }
+      data: await fetchEsportsMatches()
     } satisfies WidgetResponse<EsportsMatchesData>);
   } catch (err) {
     console.error("esports matches fetch failed:", err instanceof Error ? err.message : err);
