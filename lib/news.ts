@@ -174,9 +174,48 @@ export function normalizeFeed(source: string, parsed: unknown): Headline[] {
 }
 
 /** Some feeds are big (PC Gamer's is ~1.6 MB); don't buffer one without bound. */
-const MAX_FEED_BYTES = 4 * 1024 * 1024;
+export const MAX_FEED_BYTES = 4 * 1024 * 1024;
 
 const parser = new Parser();
+
+/** Read a response without ever buffering more than the configured byte cap. */
+export async function readTextLimited(res: Response, maxBytes: number): Promise<string> {
+  const rawLength = res.headers.get("content-length");
+  if (rawLength !== null) {
+    const declared = Number(rawLength);
+    if (Number.isFinite(declared) && declared > maxBytes) {
+      throw new Error("response body exceeds byte limit");
+    }
+  }
+
+  if (!res.body) return "";
+
+  const reader = res.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > maxBytes) {
+        await reader.cancel("response body exceeds byte limit");
+        throw new Error("response body exceeds byte limit");
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return new TextDecoder().decode(bytes);
+}
 
 /**
  * Fetch and parse ONE feed. Throws on any failure — the route fans out with
@@ -197,8 +236,7 @@ export async function fetchFeed(feed: FeedSource, timeoutMs = 8000): Promise<Hea
     });
     if (!res.ok) throw new Error(`${feed.name} -> ${res.status}`);
 
-    const xml = await res.text();
-    if (xml.length > MAX_FEED_BYTES) throw new Error(`${feed.name} feed oversized`);
+    const xml = await readTextLimited(res, MAX_FEED_BYTES);
 
     return normalizeFeed(feed.name, await parser.parseString(xml));
   } finally {

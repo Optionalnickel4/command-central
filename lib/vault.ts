@@ -1,4 +1,5 @@
-import { appendFile, readdir, readFile, stat } from "fs/promises";
+import { constants } from "fs";
+import { open, readdir } from "fs/promises";
 import { resolve, sep } from "path";
 import { formatBullet, sanitizeBulletText } from "@/lib/vault-write";
 
@@ -86,10 +87,19 @@ async function load(): Promise<VaultCache> {
       names.map(async (name) => {
         const path = resolveProjectPath(name);
         if (!path) return;
+        let handle;
         try {
-          files.set(name, await readFile(path, "utf8"));
+          // O_NOFOLLOW makes the containment check hold at the filesystem
+          // boundary too: a valid-looking `name.md` symlink cannot redirect a
+          // vault read outside ROOT.
+          handle = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW);
+          const info = await handle.stat();
+          if (!info.isFile()) return;
+          files.set(name, await handle.readFile("utf8"));
         } catch {
           /* skip this file */
+        } finally {
+          await handle?.close();
         }
       })
     );
@@ -200,26 +210,35 @@ export async function appendBullet(name: string, text: string): Promise<AppendRe
   const line = formatBullet(body);
 
   try {
-    // Existence is checked on disk, not through the cache: the cache can be up
-    // to a TTL stale, and creating a note by accident is the thing to avoid.
-    const info = await stat(path);
-    if (!info.isFile()) return { ok: false, error: "not a project note" };
+    // Open once, without following the final path component, then inspect,
+    // read and append through that same descriptor. This closes both the
+    // symlink escape and the check/open swap window.
+    const handle = await open(
+      path,
+      constants.O_RDWR | constants.O_APPEND | constants.O_NOFOLLOW
+    );
+    try {
+      const info = await handle.stat();
+      if (!info.isFile()) return { ok: false, error: "not a project note" };
 
-    const current = await readFile(path, "utf8");
-    const needsNewline = current.length > 0 && !current.endsWith("\n");
-    // Is `## Log` the LAST heading? If the human added a section after it, a
-    // plain EOF append would land the bullet in their section instead.
-    const headings = current.match(/^#{1,6} .*$/gm) ?? [];
-    const inLogSection = headings[headings.length - 1]?.trim() === LOG_HEADING;
+      const current = await handle.readFile("utf8");
+      const needsNewline = current.length > 0 && !current.endsWith("\n");
+      // Is `## Log` the LAST heading? If the human added a section after it, a
+      // plain EOF append would land the bullet in their section instead.
+      const headings = current.match(/^#{1,6} .*$/gm) ?? [];
+      const inLogSection = headings[headings.length - 1]?.trim() === LOG_HEADING;
 
-    const block =
-      (needsNewline ? "\n" : "") +
-      (inLogSection ? "" : `${current.length ? "\n" : ""}${LOG_HEADING}\n\n`) +
-      `${line}\n`;
+      const block =
+        (needsNewline ? "\n" : "") +
+        (inLogSection ? "" : `${current.length ? "\n" : ""}${LOG_HEADING}\n\n`) +
+        `${line}\n`;
 
-    // ONE call, O_APPEND: the kernel places these bytes at the current end of
-    // file. No truncation, no offset we chose, nothing existing touched.
-    await appendFile(path, block, { encoding: "utf8", flag: "a" });
+      // ONE O_APPEND write: the kernel places these bytes at the current end
+      // of the already-verified file, with no path re-resolution.
+      await handle.write(block, null, "utf8");
+    } finally {
+      await handle.close();
+    }
 
     // The new bullet must be visible to /vault and to the chat snapshot now,
     // not in up to TTL_MS. Cheap: the next read re-loads six small files.
@@ -229,6 +248,7 @@ export async function appendBullet(name: string, text: string): Promise<AppendRe
     const code = (err as NodeJS.ErrnoException)?.code;
     console.warn("vault append failed:", code ?? err, `(${name})`);
     if (code === "ENOENT") return { ok: false, error: "no such project note" };
+    if (code === "ELOOP") return { ok: false, error: "not a project note" };
     if (code === "EACCES" || code === "EPERM" || code === "EROFS") {
       return { ok: false, error: "vault is not writable" };
     }

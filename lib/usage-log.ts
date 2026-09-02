@@ -14,7 +14,7 @@ import path from "path";
  * layout can reach this file.
  */
 
-const DATA_DIR = path.join(process.cwd(), "data");
+const DATA_DIR = process.env.USAGE_DATA_DIR || path.join(process.cwd(), "data");
 const LOG_PATH = path.join(DATA_DIR, "usage.jsonl");
 
 /** Bound the file so it can never grow without limit. */
@@ -69,15 +69,24 @@ export function extractSolUsage(parsed: unknown): Partial<UsageTurn> {
   };
 }
 
+// Appending and compacting must be one critical section. Without this queue,
+// one request can append after another request has read the file but before it
+// rewrites the compacted tail, silently erasing the newer record.
+let writeQueue: Promise<void> = Promise.resolve();
+
 /** Append one turn. Never throws — usage logging must not break a reply. */
 export async function recordTurn(turn: UsageTurn): Promise<void> {
-  try {
-    await mkdir(DATA_DIR, { recursive: true });
-    await appendFile(LOG_PATH, `${JSON.stringify(turn)}\n`, "utf8");
-    await compactIfNeeded();
-  } catch (err) {
-    console.error("usage log write failed:", err instanceof Error ? err.message : err);
-  }
+  const operation = writeQueue.then(async () => {
+    try {
+      await mkdir(DATA_DIR, { recursive: true });
+      await appendFile(LOG_PATH, `${JSON.stringify(turn)}\n`, "utf8");
+      await compactIfNeeded();
+    } catch (err) {
+      console.error("usage log write failed:", err instanceof Error ? err.message : err);
+    }
+  });
+  writeQueue = operation.catch(() => undefined);
+  await operation;
 }
 
 async function compactIfNeeded(): Promise<void> {
@@ -93,6 +102,9 @@ async function compactIfNeeded(): Promise<void> {
 
 /** Read back the most recent turns, oldest first. */
 export async function readTurns(limit = MAX_TURNS): Promise<UsageTurn[]> {
+  // Give callers a stable snapshot rather than reading halfway through a
+  // queued append/compaction cycle.
+  await writeQueue;
   try {
     const raw = await readFile(LOG_PATH, "utf8");
     return raw

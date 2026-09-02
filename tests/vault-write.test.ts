@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { mkdtemp, readFile, writeFile, rm, mkdir } from "fs/promises";
+import { mkdtemp, readFile, writeFile, rm, mkdir, symlink } from "fs/promises";
 import { tmpdir } from "os";
 import { join } from "path";
 import {
@@ -278,6 +278,18 @@ describe("appendBullet — append-only, against a real directory", () => {
     const res = await vault.appendBullet("not-a-real-note", "x");
     expect(res.ok).toBe(false);
     expect(res.error).toBe("no such project note");
+  });
+
+  it("neither reads nor appends through a project-note symlink", async () => {
+    const target = join(dir, "outside.txt");
+    await writeFile(target, "must remain untouched", "utf8");
+    await symlink(target, join(dir, "trap.md"));
+
+    vault.clearVaultCache();
+    expect(await vault.readProject("trap")).toBeNull();
+    const res = await vault.appendBullet("trap", "escaped write");
+    expect(res).toEqual({ ok: false, error: "not a project note" });
+    expect(await readFile(target, "utf8")).toBe("must remain untouched");
   });
 
   it("rejects empty text", async () => {

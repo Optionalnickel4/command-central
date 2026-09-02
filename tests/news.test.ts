@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import {
   DEFAULT_FEEDS, linkKey, mergeHeadlines, newsFeeds, newsLimit, normalizeFeed,
-  sourceNameFor, titleKey, type Headline
+  readTextLimited, sourceNameFor, titleKey, type Headline
 } from "@/lib/news";
 import { OK, UPSTREAM_UNAVAILABLE, aggregateStatus } from "@/lib/response-status";
 
@@ -25,6 +25,39 @@ const h = (over: Partial<Headline> = {}): Headline => ({
   source: "Example",
   publishedAt: "2026-08-30T12:00:00.000Z",
   ...over
+});
+
+describe("readTextLimited — bounded transport", () => {
+  it("reads a multi-chunk UTF-8 body below the byte cap", async () => {
+    const bytes = new TextEncoder().encode("hello 🐁");
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(bytes.slice(0, 7));
+        controller.enqueue(bytes.slice(7));
+        controller.close();
+      }
+    });
+    expect(await readTextLimited(new Response(body), bytes.length)).toBe("hello 🐁");
+  });
+
+  it("rejects from Content-Length before reading an oversized response", async () => {
+    const res = new Response("small", { headers: { "content-length": "999" } });
+    await expect(readTextLimited(res, 10)).rejects.toThrow("byte limit");
+  });
+
+  it("cancels a streamed response as soon as actual bytes exceed the cap", async () => {
+    let cancelled = false;
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new Uint8Array(6));
+      },
+      cancel() {
+        cancelled = true;
+      }
+    });
+    await expect(readTextLimited(new Response(body), 5)).rejects.toThrow("byte limit");
+    expect(cancelled).toBe(true);
+  });
 });
 
 describe("mergeHeadlines — sorting", () => {
