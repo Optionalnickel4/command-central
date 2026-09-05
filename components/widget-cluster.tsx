@@ -24,9 +24,9 @@ export default function WidgetCluster({
 
   return (
     <div className={`orbit-cluster orbit-${cluster} flex flex-col gap-5`}>
-      {sections.map((s, si) => (
+      {sections.map((s) => (
         <section key={s.section} id={`section-${s.section}`} className="scroll-mt-24">
-          {/* Section header — rule points back toward the core */}
+          {/* Descriptive label — rule points back toward the core. */}
           <div
             className={`flex items-center gap-2.5 mb-2.5 ${
               cluster === "left" ? "flex-row" : "flex-row-reverse"
@@ -36,13 +36,11 @@ export default function WidgetCluster({
             <span className={`font-display text-[11px] font-semibold uppercase tracking-[0.32em] hud-glow-text ${align}`}>
               {s.title}
             </span>
-            <span className="font-mono text-[9px] text-cyan-500/35 tabular-nums">
-              {String(si + 1).padStart(2, "0")}
-            </span>
+            <span className="sr-only">dashboard section</span>
           </div>
 
           <div className="flex flex-col gap-3">
-            {s.widgets.map((w) => {
+            {s.widgets.filter((w) => w.showWhen === "always").map((w) => {
               const Widget = w.component;
               const i = slot++;
               // power-on and orbit-slot must stay on separate elements: the
@@ -50,12 +48,25 @@ export default function WidgetCluster({
               // frame, which would cancel the slot's inward tilt.
               return (
                 <div key={w.id} className="power-on" style={{ ["--i" as string]: i }}>
-                  <div className="orbit-slot">
+                  <div className={`orbit-slot widget-size-${w.size}`}>
                     <Widget />
                   </div>
                 </div>
               );
             })}
+            {s.widgets.some((w) => w.showWhen === "expanded") && (
+              <details className="hud-panel dashboard-disclosure p-3">
+                <summary className="cursor-pointer min-h-11 flex items-center font-mono text-[10px] uppercase tracking-[0.2em] text-cyan-300">
+                  Show {s.title} detail
+                </summary>
+                <div className="flex flex-col gap-3 pt-3">
+                  {s.widgets.filter((w) => w.showWhen === "expanded").map((w) => {
+                    const Widget = w.component;
+                    return <div key={w.id} className={`orbit-slot widget-size-${w.size}`}><Widget /></div>;
+                  })}
+                </div>
+              </details>
+            )}
           </div>
         </section>
       ))}

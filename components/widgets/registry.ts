@@ -23,14 +23,14 @@ import EsportsNews from "./esports-news";
  * else needs to change. Order in this array is display order.
  */
 export const widgetRegistry: WidgetDefinition[] = [
-  { id: "homelab-status", section: "homelab", cluster: "left", component: HomelabPanel },
-  { id: "weather", section: "general", cluster: "right", component: WeatherWidget },
-  { id: "calendar", section: "general", cluster: "right", component: CalendarWidget },
-  { id: "news", section: "general", cluster: "right", component: NewsWidget },
+  { id: "homelab-status", section: "homelab", cluster: "left", component: HomelabPanel, priority: 10, size: "wide", showWhen: "expanded", detailHref: "/sol#systems-status" },
+  { id: "calendar", section: "general", cluster: "right", component: CalendarWidget, priority: 10, size: "compact", showWhen: "always" },
+  { id: "weather", section: "general", cluster: "right", component: WeatherWidget, priority: 20, size: "compact", showWhen: "expanded" },
+  { id: "news", section: "general", cluster: "right", component: NewsWidget, priority: 40, size: "standard", showWhen: "expanded" },
   // Esports rides in the right column under "general" — compact, column-width.
-  { id: "esports-scoreboard", section: "esports", cluster: "right", component: EsportsScoreboard },
-  { id: "esports-standings", section: "esports", cluster: "right", component: EsportsStandings },
-  { id: "esports-news", section: "esports", cluster: "right", component: EsportsNews }
+  { id: "esports-scoreboard", section: "esports", cluster: "right", component: EsportsScoreboard, priority: 15, size: "standard", showWhen: "expanded" },
+  { id: "esports-standings", section: "esports", cluster: "right", component: EsportsStandings, priority: 30, size: "standard", showWhen: "expanded" },
+  { id: "esports-news", section: "esports", cluster: "right", component: EsportsNews, priority: 40, size: "standard", showWhen: "expanded" }
 ];
 
 /** Display names for section headers in the cockpit. */
@@ -85,6 +85,6 @@ export function getClusterSections(
   return order.map((section) => ({
     section,
     title: SECTION_TITLES[section] ?? section,
-    widgets: inCluster.filter((w) => w.section === section)
+    widgets: inCluster.filter((w) => w.section === section).sort((a, b) => a.priority - b.priority)
   }));
 }

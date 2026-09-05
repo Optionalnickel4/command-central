@@ -17,6 +17,12 @@ export interface WidgetDefinition {
   cluster?: WidgetCluster;
   /** The widget's own component — owns its data fetching and rendering. */
   component: ComponentType;
+  /** Lower values are rendered first. */
+  priority: number;
+  size: "compact" | "standard" | "wide";
+  /** Expanded widgets remain available without competing with live incidents. */
+  showWhen: "always" | "expanded";
+  detailHref?: string;
 }
 
 /** Common response shape every /api/widgets/* route returns.

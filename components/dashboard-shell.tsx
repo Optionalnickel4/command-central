@@ -10,6 +10,7 @@ import CommandBar from "@/components/command-bar";
 import { SolStateProvider } from "@/components/sol-state";
 import { HomelabFeedProvider } from "@/components/homelab-feed";
 import { esportsEnabled } from "@/lib/features";
+import OperationsOverview from "@/components/operations-overview";
 
 /** Small reticle mark that reads as the system's sigil. */
 function Sigil() {
@@ -158,6 +159,8 @@ export default function DashboardShell() {
             </defs>
           </svg>
         </div>
+
+        <OperationsOverview esports={esportsEnabled()} />
 
         {/* The cockpit: clusters framing the core */}
         <div className="cockpit flex-1 relative">

@@ -83,3 +83,15 @@ dashboard chrome provider and the homelab widget each own a 15-second poll.
   visible with explicit stale freshness during temporary failures.
 - Internal server consumers remain direct `lib/` function calls; no route was
   combined with another source or opened around Cloudflare Access.
+
+## Task 3 — attention-led overview
+
+- Added an Attention / All Clear band and compact estate summary before the
+  orbital cockpit. Incidents are normalized, sorted by severity, timestamped,
+  and link to the relevant detail surface.
+- Registry entries now carry priority, size, display policy, and detail links.
+  `dashboard-shell.tsx` still imports no individual widget implementation.
+- Calendar stays prominent. Detailed homelab rows, weather, news, and esports
+  rails remain available behind labeled disclosure instead of competing with
+  incidents and the assistant entry point.
+- Removed numbered section ornaments in favor of descriptive section labels.
