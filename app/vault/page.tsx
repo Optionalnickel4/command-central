@@ -1,8 +1,9 @@
-import Link from "next/link";
 import BootRelease from "@/components/boot-release";
 import ParallaxRoot from "@/components/parallax-root";
 import TickerClock from "@/components/ticker-clock";
 import VaultBrowser from "@/components/vault/vault-browser";
+import PrimaryNav from "@/components/primary-nav";
+import { esportsEnabled } from "@/lib/features";
 
 export const metadata = { title: "Vault · Command Central" };
 
@@ -26,7 +27,6 @@ export default function VaultPage() {
       <main className="parallax-root min-h-screen px-5 sm:px-8 py-4 flex flex-col">
         <header className="flex items-center justify-between gap-4 pb-3">
           <div className="flex items-center gap-3 min-w-0">
-            <Link href="/" className="cmd-chip shrink-0" aria-label="Back to dashboard">← Dashboard</Link>
             <div className="min-w-0">
               <h1 className="hud-title font-display text-base sm:text-lg font-semibold uppercase text-cyan-200 leading-none">
                 Project&nbsp;Vault
@@ -45,6 +45,7 @@ export default function VaultPage() {
             <TickerClock />
           </div>
         </header>
+        <PrimaryNav esports={esportsEnabled()} />
 
         <div className="hud-arc-wrap">
           <svg viewBox="0 0 1200 26" preserveAspectRatio="none" className="hud-arc" aria-hidden="true">

@@ -85,7 +85,7 @@ export default function MediaPanels() {
   const radarr = data.radarr;
 
   return (
-    <div className="sol-grid content-start flex-1 pb-4">
+    <div id="media-status" tabIndex={-1} className="sol-grid content-start flex-1 pb-4 scroll-mt-24 outline-none focus-visible:ring-2 focus-visible:ring-cyan-300">
       {/* ---------- CENTREPIECE: now playing ---------- */}
       <div className="power-on sol-span-2" style={{ ["--i" as string]: 0 }}>
         <Panel

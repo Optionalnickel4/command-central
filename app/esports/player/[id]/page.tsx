@@ -4,6 +4,7 @@ import ParallaxRoot from "@/components/parallax-root";
 import TickerClock from "@/components/ticker-clock";
 import PlayerDetail, { BackLink, PlayerHeader } from "@/components/esports/player-detail";
 import { esportsEnabled } from "@/lib/features";
+import PrimaryNav from "@/components/primary-nav";
 
 export const metadata = {
   title: "Player · Esports"
@@ -46,6 +47,7 @@ export default async function PlayerPage({ params }: { params: Promise<{ id: str
             <TickerClock />
           </div>
         </header>
+        <PrimaryNav esports />
 
         <div className="hud-arc-wrap">
           <svg viewBox="0 0 1200 26" preserveAspectRatio="none" className="hud-arc" aria-hidden="true">

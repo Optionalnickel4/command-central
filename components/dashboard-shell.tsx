@@ -11,6 +11,7 @@ import { SolStateProvider } from "@/components/sol-state";
 import { HomelabFeedProvider } from "@/components/homelab-feed";
 import { esportsEnabled } from "@/lib/features";
 import OperationsOverview from "@/components/operations-overview";
+import PrimaryNav from "@/components/primary-nav";
 
 /** Small reticle mark that reads as the system's sigil. */
 function Sigil() {
@@ -145,6 +146,7 @@ export default function DashboardShell() {
             <TickerClock />
           </div>
         </header>
+        <PrimaryNav esports={esportsEnabled()} />
 
         {/* Curved divider under the header */}
         <div className="hud-arc-wrap power-on" style={{ ["--i" as string]: 1 }}>

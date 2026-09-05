@@ -50,7 +50,7 @@ export default function SolTabs() {
       </div>
 
       {tab === "status" ? (
-        <div className="sol-grid flex-1 pb-4">
+        <div id="runtime-status" tabIndex={-1} className="sol-grid flex-1 pb-4 scroll-mt-24 outline-none focus-visible:ring-2 focus-visible:ring-cyan-300">
           <div className="power-on sol-span-2" style={{ ["--i" as string]: 0 }}><OverviewPanel /></div>
           <div className="power-on" style={{ ["--i" as string]: 1 }}><TasksPanel /></div>
           <div className="power-on" style={{ ["--i" as string]: 2 }}><CapabilityPanel /></div>

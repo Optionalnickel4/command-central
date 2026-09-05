@@ -67,7 +67,7 @@ export default function OperationsOverview({ esports }: { esports: boolean }) {
       id: "homelab", domain: "systems", summary: "Systems",
       detail: nodeDown ? "A Proxmox node is offline." : guestDown ? "One or more guests are stopped." : "Nodes and guests are reporting normally.",
       status: nodeDown || guestDown ? "degraded" : stateFromFeed(homelab), updatedAt: homelab.updatedAt,
-      maxAgeMs: 45_000, now, detailHref: "/sol#systems-status", reasonCode: homelab.reasonCode
+      maxAgeMs: 45_000, now, detailHref: "/#section-homelab", reasonCode: homelab.reasonCode
     }));
     const mediaSlices = media.data ? Object.values(media.data) : [];
     list.push(normalizeAggregateSignal({

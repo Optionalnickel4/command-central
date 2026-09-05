@@ -105,3 +105,17 @@ dashboard chrome provider and the homelab widget each own a 15-second poll.
   paths. Raw transport errors are no longer rendered by the homelab panel.
 - `aria-live` remains limited to the top incident summary; ordinary polling
   does not create repetitive screen-reader announcements.
+
+## Task 5 — detail workflows and navigation
+
+- Added a shared primary navigation model to Overview, Systems / Sol, Media,
+  Vault, and esports detail. Esports navigation disappears with its feature
+  flag, matching registry content behavior.
+- Incident destinations have stable hash targets. A shared hash-focus helper
+  moves keyboard focus to the visible destination without converting pages into
+  one client-side application.
+- Sol status still leads with runtime, tasks, and audit information before the
+  separate usage view. Media still leads with active streams and queues before
+  catalog totals; failed service slices remain independently usable.
+- Vault read/write code was not broadened or changed. Confirmation and
+  append-only protections remain under the existing security tests.

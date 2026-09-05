@@ -11,6 +11,7 @@ import "@fontsource/inter/500.css";
 import "@fontsource/jetbrains-mono/400.css";
 import "@fontsource/jetbrains-mono/500.css";
 import "./globals.css";
+import HashFocus from "@/components/hash-focus";
 
 export const metadata: Metadata = {
   title: "Command central",
@@ -23,7 +24,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   // attribute — immediately when prefers-reduced-motion is set.
   return (
     <html lang="en" data-boot="active">
-      <body className="font-body">{children}</body>
+      <body className="font-body"><HashFocus />{children}</body>
     </html>
   );
 }
