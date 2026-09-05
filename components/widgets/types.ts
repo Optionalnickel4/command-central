@@ -26,6 +26,13 @@ export interface WidgetResponse<T> {
   status: "ok" | "degraded" | "error";
   updatedAt: string;
   data: T;
+  /** Freshness policy carried with the payload so every consumer applies the
+   * same stale boundary. `staleAt` wins when both forms are present. */
+  staleAt?: string;
+  maxAgeMs?: number;
+  /** Stable, sanitized diagnostic identifier. Never put raw upstream text,
+   * hostnames, paths, or credentials in this field. */
+  reasonCode?: string;
   /** True when `data` is hardcoded placeholder, not a live source. Absent on
    *  real routes, so a consumer (including the assistant snapshot) can tell
    *  sample numbers from real ones. */

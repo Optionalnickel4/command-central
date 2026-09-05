@@ -58,3 +58,14 @@ The temporary instance was stopped immediately after capture.
 The duplicate light homelab poll is the only repeated identical request: the
 dashboard chrome provider and the homelab widget each own a 15-second poll.
 
+## Task 1 — normalized operational health
+
+- Extended `WidgetResponse<T>` with optional `staleAt`, `maxAgeMs`, and a
+  sanitized machine-readable `reasonCode` without breaking existing routes.
+- Added a pure `OperationalSignal` normalization layer with explicit healthy,
+  degraded, down, stale, not-configured, and disabled states.
+- State precedence is configuration → total failure → freshness → partial
+  degradation. Disabled and unconfigured optional features never become
+  incidents.
+- Aggregate normalization preserves partial service success as degradation and
+  marks the aggregate down only when every requested slice failed.
