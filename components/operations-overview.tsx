@@ -52,8 +52,8 @@ export default function OperationsOverview({ esports }: { esports: boolean }) {
     return () => window.clearInterval(timer);
   }, []);
   const homelab = useHomelabFeed();
-  const media = useWidgetData<MediaData>("/api/media", 30_000);
-  const sol = useWidgetData<SolStatusData>("/api/sol/status", 30_000);
+  const media = useWidgetData<MediaData>("/api/media", 60_000);
+  const sol = useWidgetData<SolStatusData>("/api/sol/status", 60_000);
   const weather = useWidgetData<WeatherData>("/api/widgets/weather", 10 * 60_000);
   const calendar = useWidgetData<CalendarData>("/api/widgets/calendar", 5 * 60_000);
   const news = useWidgetData<NewsData>("/api/widgets/news", 15 * 60_000);
@@ -73,7 +73,7 @@ export default function OperationsOverview({ esports }: { esports: boolean }) {
     list.push(normalizeAggregateSignal({
       id: "media", domain: "media", summary: "Media stack", slices: mediaSlices,
       detail: mediaSlices.length ? `${mediaSlices.filter((slice) => slice.ok).length}/${mediaSlices.length} services available.` : "Media status is unavailable.",
-      updatedAt: media.updatedAt, maxAgeMs: 90_000, now, detailHref: "/media#media-status",
+      updatedAt: media.updatedAt, maxAgeMs: 150_000, now, detailHref: "/media#media-status",
       ...(media.error && !media.data ? { status: "error" as const } : {})
     }));
     const solDegraded = Boolean(sol.data && (sol.data.taskAudit.errors > 0 || sol.data.gateway?.reachable === false));
@@ -81,7 +81,7 @@ export default function OperationsOverview({ esports }: { esports: boolean }) {
       id: "assistant", domain: "assistant", summary: "Sol / OpenClaw",
       detail: solDegraded ? "The runtime reports actionable audit or gateway issues." : "Assistant runtime is available.",
       status: solDegraded ? "degraded" : stateFromFeed(sol), updatedAt: sol.updatedAt,
-      maxAgeMs: 90_000, now, detailHref: "/sol#runtime-status"
+      maxAgeMs: 150_000, now, detailHref: "/sol#runtime-status"
     }));
     list.push(normalizeSignal({ id: "weather", domain: "context", summary: "Weather", status: stateFromFeed(weather), configured: weather.data?.configured, updatedAt: weather.updatedAt, maxAgeMs: 30 * 60_000, now }));
     list.push(normalizeSignal({ id: "calendar", domain: "context", summary: "Calendar", status: stateFromFeed(calendar), configured: calendar.data?.configured, updatedAt: calendar.updatedAt, maxAgeMs: 20 * 60_000, now }));

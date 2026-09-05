@@ -32,11 +32,17 @@ const EMPTY: CoordinatedSnapshot<never> = {
 };
 type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 interface CoordinatorClock {
-  setTimeout: typeof setTimeout;
-  clearTimeout: typeof clearTimeout;
+  setTimeout: (callback: () => void, delay: number) => ReturnType<typeof setTimeout>;
+  clearTimeout: (timer: ReturnType<typeof setTimeout>) => void;
   random: () => number;
 }
-const defaultClock: CoordinatorClock = { setTimeout, clearTimeout, random: Math.random };
+// Window timer functions require their receiver in Chromium. Wrappers keep the
+// coordinator portable instead of storing the unbound native methods.
+const defaultClock: CoordinatorClock = {
+  setTimeout: (callback, delay) => globalThis.setTimeout(callback, delay),
+  clearTimeout: (timer) => globalThis.clearTimeout(timer),
+  random: Math.random
+};
 
 /** Small repository-native request coordinator shared by every hook instance. */
 export class DataCoordinator {
@@ -179,7 +185,8 @@ export class DataCoordinator {
 let browserCoordinator: DataCoordinator | null = null;
 function coordinator(): DataCoordinator {
   if (browserCoordinator) return browserCoordinator;
-  browserCoordinator = new DataCoordinator(fetch);
+  // Chromium's native fetch is receiver-sensitive too; keep it on globalThis.
+  browserCoordinator = new DataCoordinator((input, init) => globalThis.fetch(input, init));
   if (typeof document !== "undefined") {
     browserCoordinator.setVisible(document.visibilityState === "visible");
     document.addEventListener("visibilitychange", () =>

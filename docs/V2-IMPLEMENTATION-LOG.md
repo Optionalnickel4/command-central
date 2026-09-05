@@ -131,3 +131,51 @@ dashboard chrome provider and the homelab widget each own a 15-second poll.
   gauges, graphs, and decorative background motion while retaining content.
 - Small labels use brighter cyan/slate tones in new v2 components; state is
   never communicated by opacity or color alone.
+
+Browser verification: zero horizontal overflow at 390, 768, 1024, 1440, 1920,
+and a 720px 200%-zoom-equivalent viewport; one `<h1>` and primary navigation at
+every width; skip link is the first tab stop. Reduced-motion computed animation
+names were `none` for grid, orb, and ticker. axe-core WCAG 2 A/AA and 2.1 A/AA
+reported zero critical or serious violations.
+
+## Task 7 — verification and rollout
+
+Documentation now reflects the actual framework versions, fail-closed auth,
+live sources, normalized health model, coordinator, registry metadata, and
+build-before-restart workflow. Final verification receipts and request-count
+comparison follow below. Production rollout remains a separate, explicitly
+approved controlled restart; this branch does not merge or restart by itself.
+
+The first real-browser request trace exposed Chromium's receiver requirement
+for native timer and fetch functions (`Illegal invocation`). The coordinator
+now calls them through `globalThis` wrappers; the final trace below is taken
+after that correction.
+
+### Final verification receipts
+
+- `npm test`: pass — 22 files, 328 tests.
+- `npm run lint`: pass.
+- `npm run build`: pass on Jarvis with production environment present.
+- Unauthenticated production `/`: 401 with `{"error":"unauthorized"}`.
+- Isolated trusted-network routes: 200 for `/`, `/sol`, `/media`, `/vault`,
+  and `/esports/player/3799`.
+- Direct homelab data path: 200 / `status: ok`, one node and 14 guests.
+- Sol chat: 200 and exact verification marker returned.
+- Claude chat: 200 and exact verification marker returned.
+- Piper: 200 `audio/wav`, 101,420 bytes.
+- Degraded/down and config-absent behavior: covered by operational-health,
+  response-status, and media tests; vault traversal, symlink, and explicit
+  append-confirm safeguards pass in the full suite.
+- Final isolated-instance log: clean startup, no repeating errors.
+- Production service: active and unchanged; no restart performed.
+
+### Request-count comparison
+
+The same 59-second window dropped from **19 to 18 total browser API requests**
+despite adding media and assistant health to the estate summary. Most
+importantly, `/api/widgets/homelab` dropped from **8 to 4** requests: one at
+load and one per 15-second cadence instead of two simultaneous polls. Media and
+assistant health use a 60-second cadence with a 150-second stale boundary.
+
+After screenshots and validation, the isolated port-3001 instance was stopped.
+Production remains on its pre-v2 artifact until an explicitly approved restart.

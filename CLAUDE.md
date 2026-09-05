@@ -1,6 +1,7 @@
 # CLAUDE.md — Command Central
 
-Personal "Jarvis" dashboard. Next.js 14 (App Router) + TypeScript + Tailwind,
+Personal "Jarvis" dashboard. Next.js 16.3.4 (App Router), React 19.2.4,
+TypeScript, and Tailwind 3,
 running as a systemd service on this box. Read this fully before changing anything.
 
 ## Where this runs
@@ -9,8 +10,8 @@ running as a systemd service on this box. Read this fully before changing anythi
 - The app is served by the **`command-central`** systemd service on port 3000.
   - `systemctl restart command-central` to apply changes (after `npm run build`).
   - `journalctl -u command-central -n 50 --no-pager` for logs.
-- LAN-only, no auth, not internet-facing. Do not add auth or expose it.
-  (Superseded — see *Auth model* below. Auth was added on the SOL-AUDITS branch.)
+- Production is protected by fail-closed Cloudflare Access. See *Auth model*
+  below; never expose trusted-network mode directly to the internet.
 
 ## Auth model
 
@@ -98,23 +99,26 @@ components/
   system-pulse.tsx        → publishes --sys-load/--sys-heat/--sys-alert
   command-bar.tsx         → persistent bottom console: cluster summary,
                             quick-jump chips, "/" command input → Sol
-  homelab-feed.tsx        → ONE shared poll of the light homelab route for
-                            the chrome (ticker, pulse, command bar). Registry
-                            widgets still fetch their own data.
+  homelab-feed.tsx        → shared light-homelab subscription for chrome;
+                            lib/fetcher de-duplicates registry subscribers.
+  operations-overview.tsx → Attention / All Clear and estate summary, driven
+                            by normalized operational signals.
   ticker.tsx              → scrolling live-vitals marquee
   widget-cluster.tsx      → renders one orbital cluster (left|right) from the
                             registry, grouped by section
   assistant-panel.tsx     → the Sol chat console, under the orb
   widgets/
-    registry.ts           → THE list: {id, section, cluster, component} plus
-                            SECTION_TITLES. How sections/widgets are added.
+    registry.ts           → THE list: component plus priority, size, display
+                            policy, and detail destination metadata.
     types.ts              → WidgetDefinition + WidgetResponse<T>
     radial-gauge.tsx      → animated SVG dial (CPU/RAM)
     history-graph.tsx     → animated rolling line/area graph
     hud-bars.tsx          → animated bar graph
     <name>-widget.tsx     → one component per widget; uses useWidgetData()
 lib/
-  fetcher.ts              → useWidgetData<T>(url, intervalMs) polling hook
+  fetcher.ts              → shared coordinator: de-duplication, visibility,
+                            cancellation, backoff, and last-known-good data
+  operational-health.ts   → pure normalized state/freshness model
   history.ts              → useRollingHistory(value, stamp) client-side window
   pve.ts                  → THE Proxmox client (Node https, NOT fetch — rule 1).
                             Shared by both homelab routes.
@@ -144,9 +148,9 @@ this pattern — don't hand-place widgets in the shell.
   `PROXMOX_TOKEN_ID`, `PROXMOX_TOKEN_SECRET`. Read-only PVEAuditor token.
   Node is named `lab`. Endpoint used: `/api2/json/cluster/resources`.
 - **Sol / OpenClaw (assistant)** — WORKING via SSH (see rule 2).
-- **Weather** — currently MOCK. Use open-meteo (no key). Lat/lon in env
+- **Weather** — LIVE via Open-Meteo (no key). Lat/lon in env
   (`WEATHER_LAT=39.9526`, `WEATHER_LON=-75.1652`, Philadelphia).
-- **Calendar / News** — currently MOCK. Google Calendar + a news API, later.
+- **Calendar / News** — LIVE via Google Calendar and RSS feeds.
 - **vlr-api (esports)** — NEW, to be added. Self-hosted VLR.gg (Valorant esports)
   REST API, reachable by URL (the user will provide `VLR_API_URL`). Read from a
   new server-side route; never call it directly from client components.
@@ -164,7 +168,8 @@ existing animations already gate on it; keep that.
 ## Testing your work
 
 - `npm run build` must pass (types + lint).
-- The site must still serve 200 at `localhost:3000`.
+- An unauthenticated production request to `localhost:3000` must return 401.
+  Use the documented isolated trusted-network instance for a 200 data-path test.
 - The homelab API must still return live data.
 - The Sol chat must still work (send a test message).
 Don't consider a change done until all four hold.

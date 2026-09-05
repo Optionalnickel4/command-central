@@ -2,7 +2,7 @@
 
 A self-hosted JARVIS-style dashboard for a homelab. It brings live Proxmox status, an AI assistant with voice, OpenClaw agent stats, read-only media services, and Valorant esports into one HUD.
 
-Built with Next.js 16 (App Router), TypeScript, and Tailwind. There is no database: each panel polls its own server-side API route and fails independently when its backend is unavailable.
+Built with Next.js 16.3.4, React 19.2.4, TypeScript, and Tailwind 3. There is no database: server-side routes retain independent failure domains while a small client coordinator de-duplicates polling, pauses hidden tabs, backs off failures, and preserves last-known-good data.
 
 > **Personal infrastructure, not a drop-in product.** Production fails closed unless Cloudflare Access authentication is configured or trusted-network mode is explicitly selected. Do not expose trusted-network mode directly to the internet.
 
@@ -17,7 +17,7 @@ Built with Next.js 16 (App Router), TypeScript, and Tailwind. There is no databa
 
 Weather, calendar, and news use live Open-Meteo, Google Calendar, and RSS sources.
 
-Every integration is optional. Missing credentials produce an unavailable card instead of taking down the dashboard.
+Every integration is optional. Missing configuration is reported calmly rather than treated as an incident; configured sources distinguish degraded, down, and stale states.
 
 ## Quick start
 
@@ -170,7 +170,8 @@ lib/
   vlr.ts                            vlr-api client
   media.ts                          media clients
   sol.ts / projects.ts              restricted SSH links
-  fetcher.ts                        widget polling hook
+  fetcher.ts                        shared polling/data coordinator
+  operational-health.ts             normalized health and freshness model
 ```
 
 Widget routes must export:
@@ -187,9 +188,15 @@ To add a widget:
 2. Add a client component using `useWidgetData()`.
 3. Register it in `components/widgets/registry.ts`.
 
+Registry entries also define priority, size, display policy, and an optional
+detail destination. The overview consumes normalized `OperationalSignal`
+objects rather than interpreting each source payload itself. Widget envelopes
+may include `staleAt` or `maxAgeMs` plus a sanitized `reasonCode`; never put raw
+upstream output, internal paths, hosts, or credentials in diagnostics.
+
 ## Development notes
 
-- `npm run build` is the release check (types and lint).
+- Run `npm test`, `npm run lint`, and `npm run build` before release.
 - Runtime usage is written to gitignored `data/usage.jsonl`.
 - Animations respect `prefers-reduced-motion`.
 - Fonts are self-hosted through `@fontsource`; keep them that way to avoid build-time Google Fonts requests.
