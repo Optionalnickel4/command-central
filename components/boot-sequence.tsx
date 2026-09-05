@@ -114,9 +114,9 @@ export default function BootSequence() {
       </svg>
 
       {/* Wordmark */}
-      <h1 className="boot-wordmark hud-title font-display text-2xl sm:text-3xl font-semibold uppercase text-cyan-300">
+      <div className="boot-wordmark hud-title font-display text-2xl sm:text-3xl font-semibold uppercase text-cyan-300">
         Command Central
-      </h1>
+      </div>
 
       {/* Boot log */}
       <div className="w-[min(88vw,380px)]">

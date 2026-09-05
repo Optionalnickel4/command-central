@@ -285,7 +285,7 @@ export default function SolOrb() {
           <span className="inline-block h-1 w-1 rounded-full orb-status-dot live-pulse" />
           {SOL_LABEL[state]}
         </span>
-        <span className="mt-1 font-mono text-[8px] uppercase tracking-[0.3em] text-slate-600">
+        <span className="mt-1 font-mono text-[8px] uppercase tracking-[0.3em] text-slate-400">
           {backend === "claude" ? "Local CLI backend" : "OpenClaw · 10.0.0.152"}
         </span>
       </div>

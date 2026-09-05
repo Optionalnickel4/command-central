@@ -28,7 +28,7 @@ export default function SolStatsPage() {
       {/* No boot overlay on this route — release the gate so panels can appear. */}
       <BootRelease />
 
-      <main className="parallax-root min-h-screen px-5 sm:px-8 py-4 flex flex-col">
+      <main id="main-content" tabIndex={-1} className="parallax-root min-h-screen px-4 sm:px-8 py-4 flex flex-col outline-none">
         <header className="flex items-center justify-between gap-4 pb-3">
           <div className="flex items-center gap-3 min-w-0">
             <div className="min-w-0">

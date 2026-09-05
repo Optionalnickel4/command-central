@@ -120,7 +120,7 @@ export default function DashboardShell() {
       <SystemPulse />
       <BootSequence />
 
-      <main className="parallax-root min-h-screen flex flex-col px-5 sm:px-8 py-4">
+      <main id="main-content" tabIndex={-1} className="parallax-root min-h-screen flex flex-col px-4 sm:px-8 py-4 outline-none">
         <header className="power-on flex items-center justify-between gap-4 pb-3">
           <div className="flex items-center gap-3 min-w-0">
             <Sigil />

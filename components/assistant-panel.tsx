@@ -267,7 +267,7 @@ export default function AssistantPanel() {
     <div className="core-console mt-3 w-full">
       <div className="flex items-center justify-between mb-2">
         <span className="flex-1 hud-rule" />
-        <span className="px-3 font-mono text-[8.5px] uppercase tracking-[0.34em] text-cyan-500/45">
+        <span className="px-3 font-mono text-[8.5px] uppercase tracking-[0.34em] text-cyan-300/80">
           Core Console
         </span>
         <span className="flex-1 hud-rule" style={{ transform: "scaleX(-1)" }} />

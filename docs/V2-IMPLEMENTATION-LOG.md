@@ -119,3 +119,15 @@ dashboard chrome provider and the homelab widget each own a 15-second poll.
   catalog totals; failed service slices remain independently usable.
 - Vault read/write code was not broadened or changed. Confirmation and
   append-only protections remain under the existing security tests.
+
+## Task 6 — responsive, accessibility, and motion pass
+
+- Added a skip link and consistent `main` target, global visible focus rings,
+  focusable incident destinations, and 44px disclosure/navigation targets.
+- Mobile and tablet orb caps keep operational status and the assistant console
+  ahead of decoration. Layout verification covers 390, 768, 1024, 1440, and
+  1920 CSS-pixel widths plus a 200% zoom-equivalent viewport.
+- Reduced motion disables boot, parallax transforms, conduits, ticker, orb,
+  gauges, graphs, and decorative background motion while retaining content.
+- Small labels use brighter cyan/slate tones in new v2 components; state is
+  never communicated by opacity or color alone.

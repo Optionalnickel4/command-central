@@ -43,6 +43,28 @@ body {
   overflow-x: hidden;
 }
 
+.skip-link {
+  position: fixed;
+  left: 0.75rem;
+  top: 0.75rem;
+  z-index: 100;
+  transform: translateY(-180%);
+  border: 1px solid var(--hud-cyan);
+  border-radius: 3px;
+  background: #020617;
+  color: #cffafe;
+  padding: 0.65rem 0.85rem;
+  font: 500 0.75rem "JetBrains Mono", monospace;
+}
+.skip-link:focus { transform: translateY(0); }
+
+:where(a, button, summary, input, textarea, select, [tabindex]):focus-visible {
+  outline: 2px solid #67e8f9;
+  outline-offset: 3px;
+}
+
+summary { min-height: 44px; }
+
 /* ---------- Background layers ---------------------------------- */
 
 .hud-bg {
@@ -437,6 +459,18 @@ html[data-boot="active"] .power-on { animation-play-state: paused; }
   min-width: 0;
 }
 
+@media (max-width: 639px) {
+  :root { --orb-size: min(62vw, 250px); }
+  .cockpit { gap: 0.9rem; }
+  .cockpit-core { max-width: 100%; }
+  .core-console { width: 100%; }
+  .hud-title { letter-spacing: 0.08em; }
+}
+
+@media (min-width: 640px) and (max-width: 1279px) {
+  :root { --orb-size: min(42vw, 360px); }
+}
+
 /* Panels angle inward, facing the core; straighten on hover to be read. */
 .orbit-slot { transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1); }
 @media (min-width: 1280px) {
@@ -644,7 +678,7 @@ html[data-surge="1"] .conduit-packet-in { opacity: 0.85; }
   text-transform: uppercase;
   letter-spacing: 0.22em;
   padding: 3px 10px;
-  color: rgba(34, 211, 238, 0.5);
+  color: #22d3ee;
   background: transparent;
   transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
 }
@@ -717,6 +751,16 @@ html[data-surge="1"] .conduit-packet-in { opacity: 0.85; }
   }
   /* Boot is skipped outright for reduced motion — never rendered. */
   .boot-overlay { display: none; }
+  .skip-link,
+  .rank-bar,
+  .bar-fill,
+  .donut-seg,
+  .orb-spectrum line { transition: none; }
+  .ticker-track { transform: none !important; }
+}
+
+@media (forced-colors: active) {
+  .hud-panel, .attention-band, .cmd-chip { border: 1px solid CanvasText; }
 }
 
 ::-webkit-scrollbar { width: 6px; height: 6px; }

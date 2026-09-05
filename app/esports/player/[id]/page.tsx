@@ -32,7 +32,7 @@ export default async function PlayerPage({ params }: { params: Promise<{ id: str
       <ParallaxRoot />
       <BootRelease />
 
-      <main className="parallax-root min-h-screen px-5 sm:px-8 py-4 flex flex-col">
+      <main id="main-content" tabIndex={-1} className="parallax-root min-h-screen px-4 sm:px-8 py-4 flex flex-col outline-none">
         <header className="flex items-center justify-between gap-4 pb-3">
           <div className="flex items-center gap-3 min-w-0">
             <BackLink />

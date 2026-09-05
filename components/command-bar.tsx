@@ -120,7 +120,7 @@ export default function CommandBar({ esports }: { esports: boolean }) {
       </div>
 
       {/* Quick jumps + the Sol telemetry page */}
-      <div className="flex items-center gap-1.5">
+      <div className="flex max-w-full flex-wrap items-center gap-1.5">
         {sections.map((s) => (
           <button
             key={s.section}

@@ -24,7 +24,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   // attribute — immediately when prefers-reduced-motion is set.
   return (
     <html lang="en" data-boot="active">
-      <body className="font-body"><HashFocus />{children}</body>
+      <body className="font-body"><a className="skip-link" href="#main-content">Skip to main content</a><HashFocus />{children}</body>
     </html>
   );
 }
