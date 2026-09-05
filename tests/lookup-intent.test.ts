@@ -183,3 +183,98 @@ describe("parsePrepass — strict parse of the model's JSON", () => {
     }
   });
 });
+
+describe("parseIntent — team-name questions (the /assistant/team-match intents)", () => {
+  /**
+   * These are the phrasings that used to fall through to a generic
+   * live/results lookup (or to nothing) and lost the team entirely. They must
+   * resolve to team-match WITH the name, because the endpoint is the only one
+   * that can answer "is X winning" with a round score.
+   */
+  it("routes the score / who's-winning phrasings to team-match", () => {
+    expect(parseIntent("what's the score of the Sentinels game?")).toMatchObject({
+      kind: "team-match", query: "Sentinels"
+    });
+    expect(parseIntent("who's winning the NRG match?")).toMatchObject({
+      kind: "team-match", query: "NRG"
+    });
+    expect(parseIntent("is Sentinels winning?")).toMatchObject({
+      kind: "team-match", query: "Sentinels"
+    });
+  });
+
+  it("routes the is-it-playing / next-match phrasings to team-match", () => {
+    expect(parseIntent("is Sentinels playing today?")).toMatchObject({
+      kind: "team-match", query: "Sentinels"
+    });
+    expect(parseIntent("when's Sentinels' next match?")).toMatchObject({
+      kind: "team-match", query: "Sentinels"
+    });
+    expect(parseIntent("what's up with Sentinels?")).toMatchObject({
+      kind: "team-match", query: "Sentinels"
+    });
+  });
+
+  it("routes the how-did-they-do phrasings to team-match", () => {
+    expect(parseIntent("how did Sentinels do?")).toMatchObject({
+      kind: "team-match", query: "Sentinels"
+    });
+    expect(parseIntent("what was Sentinels' last match?")).toMatchObject({
+      kind: "team-match", query: "Sentinels"
+    });
+  });
+
+  it("keeps a leading 'the' when it is part of the name", () => {
+    // "The Spiders" is a real team; the generic entity cleaner drops a leading
+    // "the" as filler, which would have searched for the wrong name.
+    expect(parseIntent("what was The Spiders' last match?").query).toBe("The Spiders");
+  });
+
+  it("routes standings questions about one team to team-rank", () => {
+    expect(parseIntent("where does Sentinels rank?")).toMatchObject({
+      kind: "team-rank", query: "Sentinels"
+    });
+    expect(parseIntent("what rank is NRG")).toMatchObject({
+      kind: "team-rank", query: "NRG"
+    });
+    expect(parseIntent("what is Sentinels' standing?")).toMatchObject({
+      kind: "team-rank", query: "Sentinels"
+    });
+  });
+
+  it("leaves the explicit 'team <name>' phrasing on the fuller team profile", () => {
+    // Regression guard for the pinned contract above: "team X" keeps returning
+    // the roster+results+upcoming profile, which is a superset of team-match.
+    expect(parseIntent("how did team Karmine Corp do in their last matches?").kind).toBe("team");
+    expect(parseIntent("tell me about team Sentinels").kind).toBe("team");
+  });
+
+  it("does not spend a team lookup on a non-team question", () => {
+    // The loose phrasings need an esports signal or a capitalised name, so
+    // household questions stay out of vlr-api.
+    expect(parseIntent("what's up with the printer?").kind).toBe("none");
+    expect(parseIntent("how's the deploy going?").kind).toBe("none");
+  });
+});
+
+describe("parseIntent — league-wide phrasings added with the assistant endpoints", () => {
+  it("treats a bare who's-winning as a question about the live slate", () => {
+    expect(parseIntent("who's winning?").kind).toBe("live");
+    expect(parseIntent("any games on?").kind).toBe("live");
+    expect(parseIntent("what's live right now?").kind).toBe("live");
+  });
+
+  it("treats what's-on-this-week as an events question", () => {
+    expect(parseIntent("what's on this week?").kind).toBe("events");
+    expect(parseIntent("what tournaments are running?").kind).toBe("events");
+  });
+
+  it("carries region and timespan on a top-fragger question", () => {
+    // /stats 400s on anything but na|eu and 30d|60d|90d|all, so the parse
+    // hands the pair through and runVlrLookup validates it.
+    expect(parseIntent("who's the top fragger in na?")).toMatchObject({ kind: "stats" });
+    expect(parseIntent("who's the top fragger in na?").query).toMatch(/^na:/);
+    expect(parseIntent("best player in eu over the last 90 days").query).toBe("eu:90d");
+    expect(parseIntent("who's the best player right now?").kind).toBe("stats");
+  });
+});
