@@ -8,6 +8,7 @@ import type { HomelabData } from "@/app/api/widgets/homelab/route";
 import type { HomelabDetailData, GuestDetail, NodeDetail } from "@/app/api/widgets/homelab-detail/route";
 import RadialGauge from "./radial-gauge";
 import HistoryGraph from "./history-graph";
+import { PanelFailure, PanelFrame, PanelSkeleton } from "./panel-state";
 
 type Node = HomelabData["nodes"][number];
 type Guest = HomelabData["guests"][number];
@@ -243,24 +244,11 @@ export default function HomelabPanel() {
   const { data, error, status, updatedAt } = useWidgetData<HomelabData>("/api/widgets/homelab", 15000);
   const { data: detail } = useWidgetData<HomelabDetailData>("/api/widgets/homelab-detail", 30000);
 
-  if (error)
-    return (
-      <div className="hud-panel depth-mid p-4">
-        <p className="text-sm hud-glow-red font-mono">SIGNAL LOST: {error}</p>
-      </div>
-    );
+  if (error && !data) return <PanelFrame><PanelFailure source="Proxmox telemetry" /></PanelFrame>;
   if (!data)
-    return (
-      <div className="hud-panel depth-mid p-4">
-        <p className="text-sm hud-glow-text font-mono live-pulse">ACQUIRING TELEMETRY…</p>
-      </div>
-    );
+    return <PanelFrame><PanelSkeleton label="Loading Proxmox telemetry" /></PanelFrame>;
   if (status === "error")
-    return (
-      <div className="hud-panel depth-mid p-4">
-        <p className="text-sm hud-glow-amber font-mono">PROXMOX LINK DOWN — check credentials</p>
-      </div>
-    );
+    return <PanelFrame><PanelFailure source="Proxmox telemetry" stale={Boolean(data)} /></PanelFrame>;
 
   const online = data.guests.filter((g) => g.status === "ok").length;
   const detailByVmid = new Map((detail?.guests ?? []).map((g) => [g.vmid, g]));

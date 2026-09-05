@@ -2,6 +2,7 @@
 
 import { useWidgetData } from "@/lib/fetcher";
 import type { CalendarData } from "@/app/api/widgets/calendar/route";
+import { PanelEmpty, PanelFailure, PanelFrame, PanelSkeleton, PanelTitle } from "./panel-state";
 
 /**
  * Three states, deliberately distinct: real events, "not connected" (the three
@@ -10,30 +11,29 @@ import type { CalendarData } from "@/app/api/widgets/calendar/route";
  * last is an alarm.
  */
 export default function CalendarWidget() {
-  const { data, status, error } = useWidgetData<CalendarData>("/api/widgets/calendar", 5 * 60000);
+  const { data, status, error, updatedAt, freshness } = useWidgetData<CalendarData>("/api/widgets/calendar", 5 * 60000);
 
   const failed = Boolean(error) || status === "error";
   const unconnected = data?.configured === false;
 
   return (
-    <div className="hud-panel depth-mid p-4 h-full">
-      <div className="flex items-center justify-between mb-2.5">
-        <p className="font-mono text-[9.5px] uppercase tracking-[0.28em] text-cyan-500/60">Next Up</p>
-      </div>
+    <PanelFrame>
+      <PanelTitle state={unconnected ? "not_configured" : failed ? (data ? "stale" : "down") : freshness === "stale" ? "stale" : "healthy"} updatedAt={updatedAt}>Next Up</PanelTitle>
 
       {unconnected ? (
-        <p className="font-mono text-[11px] text-slate-500 leading-relaxed">
+        <PanelEmpty>
           Not connected —{" "}
           <a href="/api/calendar/connect" className="text-cyan-400/70 hover:text-cyan-300 underline underline-offset-2">
             link Google Calendar
           </a>
           .
-        </p>
+        </PanelEmpty>
       ) : failed ? (
-        <p className="font-mono text-[11px] hud-glow-red">Unavailable — Google Calendar unreachable</p>
+        <PanelFailure source="calendar" stale={Boolean(data)} />
+      ) : !data ? (
+        <PanelSkeleton label="Loading calendar" />
       ) : (
         <>
-          {!data && <p className="font-mono text-xs text-slate-500">…</p>}
           {data?.events.map((ev) => (
             <p
               key={ev.time + ev.title}
@@ -48,6 +48,6 @@ export default function CalendarWidget() {
           )}
         </>
       )}
-    </div>
+    </PanelFrame>
   );
 }

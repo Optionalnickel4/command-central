@@ -2,6 +2,7 @@
 
 import { useWidgetData } from "@/lib/fetcher";
 import type { NewsData } from "@/app/api/widgets/news/route";
+import { PanelEmpty, PanelFailure, PanelFrame, PanelSkeleton, PanelTitle } from "./panel-state";
 
 /**
  * Merged tech/gaming headlines. Feeds degrade individually, so the panel says
@@ -9,15 +10,14 @@ import type { NewsData } from "@/app/api/widgets/news/route";
  * — and only calls it unavailable when every feed is down.
  */
 export default function NewsWidget() {
-  const { data, status, error } = useWidgetData<NewsData>("/api/widgets/news", 15 * 60000);
+  const { data, status, error, updatedAt, freshness } = useWidgetData<NewsData>("/api/widgets/news", 15 * 60000);
 
   const failed = Boolean(error) || status === "error";
   const degraded = status === "degraded" && data;
 
   return (
-    <div className="hud-panel depth-mid p-4 h-full">
-      <div className="flex items-center justify-between mb-2.5 gap-2">
-        <p className="font-mono text-[9.5px] uppercase tracking-[0.28em] text-cyan-500/60">Tech / Gaming</p>
+    <PanelFrame>
+      <PanelTitle state={failed ? (data ? "stale" : "down") : degraded ? "degraded" : freshness === "stale" ? "stale" : "healthy"} updatedAt={updatedAt}>Tech / Gaming
         {degraded && (
           <span
             title="Some feeds didn't answer; the rest are current"
@@ -26,10 +26,10 @@ export default function NewsWidget() {
             {data.feedsOk}/{data.feedsTotal} feeds
           </span>
         )}
-      </div>
+      </PanelTitle>
 
-      {failed && <p className="font-mono text-[11px] hud-glow-red">Unavailable — no feed responded</p>}
-      {!failed && !data && <p className="font-mono text-xs text-slate-500">…</p>}
+      {failed && <PanelFailure source="news feeds" stale={Boolean(data)} />}
+      {!failed && !data && <PanelSkeleton label="Loading news" />}
 
       {!failed &&
         data?.headlines.map((h) => (
@@ -49,8 +49,8 @@ export default function NewsWidget() {
         ))}
 
       {!failed && data?.headlines.length === 0 && (
-        <p className="font-mono text-xs text-slate-500">No headlines on the wire.</p>
+        <PanelEmpty>No headlines on the wire.</PanelEmpty>
       )}
-    </div>
+    </PanelFrame>
   );
 }

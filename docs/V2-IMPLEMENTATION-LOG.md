@@ -95,3 +95,13 @@ dashboard chrome provider and the homelab widget each own a 15-second poll.
   rails remain available behind labeled disclosure instead of competing with
   incidents and the assistant entry point.
 - Removed numbered section ornaments in favor of descriptive section labels.
+
+## Task 4 — shared widget presentation states
+
+- Added shared panel frame, title, state badge, skeleton, empty, freshness, and
+  sanitized failure primitives. Every state uses text and an icon in addition
+  to color, and timestamps use machine-readable `<time>` elements.
+- Migrated the home weather, calendar, news, homelab, and shared esports failure
+  paths. Raw transport errors are no longer rendered by the homelab panel.
+- `aria-live` remains limited to the top incident summary; ordinary polling
+  does not create repetitive screen-reader announcements.
