@@ -9,8 +9,8 @@ import type { HomelabData } from "@/app/api/widgets/homelab/route";
  * ticker, system pulse and command bar all read the same snapshot instead of
  * each opening their own interval.
  *
- * Registry widgets are deliberately NOT wired through this: they still own
- * their own fetching, per the documented widget pattern.
+ * Registry widgets may request the same key: DataCoordinator de-duplicates it,
+ * so chrome and presentation share one in-flight request and one cadence.
  */
 type Feed = ReturnType<typeof useWidgetData<HomelabData>>;
 

@@ -69,3 +69,17 @@ dashboard chrome provider and the homelab widget each own a 15-second poll.
   incidents.
 - Aggregate normalization preserves partial service success as degradation and
   marks the aggregate down only when every requested slice failed.
+
+## Task 2 — coordinated client data
+
+- Replaced per-hook intervals with a shared, dependency-free coordinator keyed
+  by request URL. Subscribers share the shortest requested cadence and never
+  overlap an in-flight request.
+- Hidden tabs pause polling. Visibility regain and browser-online events trigger
+  immediate revalidation.
+- Transport failures use bounded exponential backoff with ±20% jitter and a
+  five-minute ceiling; a successful response resets the failure count.
+- The final unsubscribe aborts in-flight work. Last-known-good payloads remain
+  visible with explicit stale freshness during temporary failures.
+- Internal server consumers remain direct `lib/` function calls; no route was
+  combined with another source or opened around Cloudflare Access.
