@@ -9,7 +9,7 @@ import type { NewsData } from "@/app/api/widgets/news/route";
  * — and only calls it unavailable when every feed is down.
  */
 export default function NewsWidget() {
-  const { data, status, error } = useWidgetData<NewsData>("/api/widgets/news", 15 * 60000);
+  const { data, status, error, refreshing } = useWidgetData<NewsData>("/api/widgets/news", 15 * 60000);
 
   const failed = Boolean(error) || status === "error";
   const degraded = status === "degraded" && data;
@@ -18,18 +18,16 @@ export default function NewsWidget() {
     <div className="hud-panel depth-mid p-4 h-full">
       <div className="flex items-center justify-between mb-2.5 gap-2">
         <p className="font-mono text-[9.5px] uppercase tracking-[0.28em] text-cyan-500/60">Tech / Gaming</p>
-        {degraded && (
-          <span
-            title="Some feeds didn't answer; the rest are current"
-            className="font-mono text-[8px] uppercase tracking-[0.2em] text-amber-400/50 shrink-0"
-          >
-            {data.feedsOk}/{data.feedsTotal} feeds
-          </span>
-        )}
+        <span
+          title={degraded ? "Some feeds didn't answer; the rest are current" : undefined}
+          className={`status-pill ${failed ? "is-error" : degraded ? "is-warn" : refreshing ? "is-syncing" : "is-live"}`}
+        >
+          {failed ? "Offline" : degraded ? `${data.feedsOk}/${data.feedsTotal} feeds` : refreshing ? "Sync" : "Live"}
+        </span>
       </div>
 
       {failed && <p className="font-mono text-[11px] hud-glow-red">Unavailable — no feed responded</p>}
-      {!failed && !data && <p className="font-mono text-xs text-slate-500">…</p>}
+      {!failed && !data && <p className="font-mono text-xs text-slate-500 loading-line">Acquiring feeds…</p>}
 
       {!failed &&
         data?.headlines.map((h) => (
@@ -38,7 +36,7 @@ export default function NewsWidget() {
             href={h.url}
             target="_blank"
             rel="noreferrer noopener"
-            className="font-mono text-xs text-slate-300 mb-2 leading-relaxed flex gap-2 hover:text-cyan-300 transition-colors"
+            className="font-mono text-xs text-slate-300 mb-2 leading-relaxed flex gap-2 hover:text-cyan-300 transition-colors interactive-line"
           >
             <span className="text-cyan-500/40 shrink-0">▸</span>
             <span className="min-w-0">

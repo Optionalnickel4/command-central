@@ -36,7 +36,7 @@ export default function WidgetCluster({
             <span className={`font-display text-[11px] font-semibold uppercase tracking-[0.32em] hud-glow-text ${align}`}>
               {s.title}
             </span>
-            <span className="font-mono text-[9px] text-cyan-500/35 tabular-nums">
+            <span className="font-mono text-[9px] text-cyan-300/70 tabular-nums">
               {String(si + 1).padStart(2, "0")}
             </span>
           </div>

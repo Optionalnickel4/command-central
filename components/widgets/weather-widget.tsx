@@ -9,7 +9,7 @@ import type { WeatherData } from "@/app/api/widgets/weather/route";
  * (configured, but Open-Meteo didn't answer). Only the last is an alarm.
  */
 export default function WeatherWidget() {
-  const { data, status, error } = useWidgetData<WeatherData>("/api/widgets/weather", 10 * 60000);
+  const { data, status, error, mock, refreshing } = useWidgetData<WeatherData>("/api/widgets/weather", 10 * 60000);
 
   const failed = Boolean(error) || status === "error";
   const unconfigured = data?.configured === false;
@@ -22,8 +22,11 @@ export default function WeatherWidget() {
 
   return (
     <div className="hud-panel depth-mid p-4 h-full">
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between mb-2 gap-2">
         <p className="font-mono text-[9.5px] uppercase tracking-[0.28em] text-cyan-500/60">Weather</p>
+        <span className={`status-pill ${failed ? "is-error" : unconfigured ? "is-muted" : refreshing ? "is-syncing" : mock ? "is-sample" : "is-live"}`}>
+          {failed ? "Offline" : unconfigured ? "Setup" : refreshing ? "Sync" : mock ? "Sample" : "Live"}
+        </span>
       </div>
 
       {unconfigured ? (
@@ -38,8 +41,8 @@ export default function WeatherWidget() {
           <p className="font-display text-4xl font-semibold hud-glow-text leading-none tabular-nums">
             {data?.tempF != null ? `${data.tempF}°` : "—"}
           </p>
-          <p className="font-mono text-[11px] text-slate-400 mt-2">
-            {data ? `${data.location} · ${data.condition}` : "…"}
+          <p className="font-mono text-[11px] text-slate-400 mt-2 transition-colors duration-300">
+            {data ? `${data.location} · ${data.condition}` : "Acquiring weather…"}
             {feels && <span className="text-slate-500"> · feels {feels}</span>}
           </p>
         </>

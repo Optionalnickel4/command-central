@@ -240,25 +240,37 @@ function GuestRow({ guest, detail }: { guest: Guest; detail?: GuestDetail }) {
 
 export default function HomelabPanel() {
   // Light poll drives the gauges; the heavy fan-out runs half as often.
-  const { data, error, status, updatedAt } = useWidgetData<HomelabData>("/api/widgets/homelab", 15000);
+  const { data, error, status, updatedAt, refreshing } = useWidgetData<HomelabData>("/api/widgets/homelab", 15000);
   const { data: detail } = useWidgetData<HomelabDetailData>("/api/widgets/homelab-detail", 30000);
 
   if (error)
     return (
-      <div className="hud-panel depth-mid p-4">
-        <p className="text-sm hud-glow-red font-mono">SIGNAL LOST: {error}</p>
+      <div className="hud-panel depth-mid p-4 surface-state is-error">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm hud-glow-red font-mono">Signal lost</p>
+          <span className="status-pill is-error">Offline</span>
+        </div>
+        <p className="mt-2 font-mono text-[11px] text-slate-500">{error}</p>
       </div>
     );
   if (!data)
     return (
-      <div className="hud-panel depth-mid p-4">
-        <p className="text-sm hud-glow-text font-mono live-pulse">ACQUIRING TELEMETRY…</p>
+      <div className="hud-panel depth-mid p-4 surface-state is-loading">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm hud-glow-text font-mono">Acquiring telemetry</p>
+          <span className="status-pill is-syncing">Sync</span>
+        </div>
+        <div className="mt-4 telemetry-skeleton" aria-hidden="true" />
       </div>
     );
   if (status === "error")
     return (
-      <div className="hud-panel depth-mid p-4">
-        <p className="text-sm hud-glow-amber font-mono">PROXMOX LINK DOWN — check credentials</p>
+      <div className="hud-panel depth-mid p-4 surface-state is-warn">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm hud-glow-amber font-mono">Proxmox link down</p>
+          <span className="status-pill is-warn">Degraded</span>
+        </div>
+        <p className="mt-2 font-mono text-[11px] text-slate-500">Check credentials or the Proxmox endpoint.</p>
       </div>
     );
 
@@ -284,6 +296,7 @@ export default function HomelabPanel() {
           </span>
           <span className="flex items-center gap-3 font-mono text-[10.5px] text-slate-400">
             <span className="text-slate-600 hidden sm:inline">click a row for detail</span>
+            <span className={`status-pill ${refreshing ? "is-syncing" : "is-live"}`}>{refreshing ? "Sync" : "Live"}</span>
             <span>
               <span className="hud-glow-text">{online}</span> / {data.guests.length} online
             </span>

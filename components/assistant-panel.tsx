@@ -330,10 +330,10 @@ export default function AssistantPanel() {
           ) : (
             <div
               key={i}
-              className={`font-mono text-[12.5px] leading-relaxed rounded px-3 py-2 max-w-[92%] whitespace-pre-wrap ${
+              className={`message-bubble font-mono text-[12.5px] leading-relaxed rounded px-3 py-2 max-w-[92%] whitespace-pre-wrap ${
                 m.role === "user"
-                  ? "self-end bg-cyan-500/10 border border-cyan-500/30 text-cyan-100"
-                  : "self-start bg-slate-900/50 border border-slate-700/40 text-slate-200"
+                  ? "is-user self-end bg-cyan-500/10 border border-cyan-500/30 text-cyan-100"
+                  : "is-assistant self-start bg-slate-900/50 border border-slate-700/40 text-slate-200"
               }`}
               style={m.role === "user" ? { boxShadow: "0 0 14px rgba(34,211,238,0.10)" } : undefined}
             >
@@ -368,7 +368,7 @@ export default function AssistantPanel() {
               ? "Push to talk"
               : "Voice input needs HTTPS — available once the dashboard is served securely."
           }
-          className={`mic-btn ${listening ? "is-listening" : ""} ${micReady ? "" : "is-gated"}`}
+          className={`mic-btn interactive-control ${listening ? "is-listening" : ""} ${micReady ? "" : "is-gated"}`}
         >
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
             <rect x="9" y="2" width="6" height="12" rx="3" />
@@ -381,13 +381,13 @@ export default function AssistantPanel() {
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && send()}
           placeholder={listening ? "listening…" : "> query sol"}
-          className="flex-1 min-w-0 bg-slate-900/60 border border-cyan-500/30 rounded px-3 py-2 font-mono text-[12.5px] text-cyan-100 placeholder:text-cyan-500/30 focus:outline-none focus:border-cyan-400/60"
+          className="flex-1 min-w-0 bg-slate-900/60 border border-cyan-500/30 rounded px-3 py-2 font-mono text-[12.5px] text-cyan-100 placeholder:text-cyan-500/30 focus:outline-none focus:border-cyan-400/60 interactive-input"
           style={{ boxShadow: "inset 0 0 10px rgba(34,211,238,0.05)" }}
         />
         <button
           onClick={() => send()}
           disabled={pending}
-          className="px-3 rounded border border-cyan-400/40 bg-cyan-500/10 font-mono text-[10.5px] uppercase tracking-wider hud-glow-text hover:bg-cyan-500/20 disabled:opacity-40 shrink-0"
+          className="px-3 rounded border border-cyan-400/40 bg-cyan-500/10 font-mono text-[10.5px] uppercase tracking-wider hud-glow-text hover:bg-cyan-500/20 disabled:opacity-40 shrink-0 interactive-control"
           aria-label="Send"
         >
           Send

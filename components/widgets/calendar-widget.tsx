@@ -10,15 +10,18 @@ import type { CalendarData } from "@/app/api/widgets/calendar/route";
  * last is an alarm.
  */
 export default function CalendarWidget() {
-  const { data, status, error } = useWidgetData<CalendarData>("/api/widgets/calendar", 5 * 60000);
+  const { data, status, error, refreshing } = useWidgetData<CalendarData>("/api/widgets/calendar", 5 * 60000);
 
   const failed = Boolean(error) || status === "error";
   const unconnected = data?.configured === false;
 
   return (
     <div className="hud-panel depth-mid p-4 h-full">
-      <div className="flex items-center justify-between mb-2.5">
+      <div className="flex items-center justify-between mb-2.5 gap-2">
         <p className="font-mono text-[9.5px] uppercase tracking-[0.28em] text-cyan-500/60">Next Up</p>
+        <span className={`status-pill ${failed ? "is-error" : unconnected ? "is-muted" : refreshing ? "is-syncing" : "is-live"}`}>
+          {failed ? "Offline" : unconnected ? "Setup" : refreshing ? "Sync" : "Live"}
+        </span>
       </div>
 
       {unconnected ? (
@@ -33,7 +36,7 @@ export default function CalendarWidget() {
         <p className="font-mono text-[11px] hud-glow-red">Unavailable — Google Calendar unreachable</p>
       ) : (
         <>
-          {!data && <p className="font-mono text-xs text-slate-500">…</p>}
+          {!data && <p className="font-mono text-xs text-slate-500 loading-line">Acquiring calendar…</p>}
           {data?.events.map((ev) => (
             <p
               key={ev.time + ev.title}
