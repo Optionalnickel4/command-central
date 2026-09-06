@@ -1,0 +1,23 @@
+[
+  {
+    "backend": "sol",
+    "status": 200,
+    "hasReply": true,
+    "marker": true,
+    "elapsedMs": 8145
+  },
+  {
+    "backend": "claude",
+    "status": 200,
+    "hasReply": true,
+    "marker": true,
+    "elapsedMs": 6200
+  },
+  {
+    "service": "piper",
+    "status": 200,
+    "type": "audio/wav",
+    "bytes": 80940,
+    "wav": true
+  }
+]

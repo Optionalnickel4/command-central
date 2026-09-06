@@ -23,10 +23,12 @@ interface Message {
  */
 export default function AssistantPanel() {
   const [messages, setMessages] = useState<Message[]>([
-    { role: "assistant", content: "Systems online. Ask me anything about the board." }
+    { role: "assistant", content: "Choose an assistant and send a message. Availability is checked on request." }
   ]);
   const [input, setInput] = useState("");
   const [pending, setPending] = useState(false);
+  const sending = useRef(false);
+  const [micError, setMicError] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const { setState: setSolState, registerSubmit, backend, setBackend } = useSolState();
   const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -85,6 +87,7 @@ export default function AssistantPanel() {
 
   useEffect(() => () => {
     if (idleTimer.current) clearTimeout(idleTimer.current);
+    recognitionRef.current?.abort();
     stopAudio();
   }, []);
 
@@ -169,10 +172,11 @@ export default function AssistantPanel() {
         send(transcript);
       }
     };
-    rec.onerror = () => setListening(false);
+    rec.onerror = () => { setListening(false); setMicError("Microphone unavailable or permission denied. Text input still works."); };
     rec.onend = () => setListening(false);
 
     recognitionRef.current = rec;
+    setMicError("");
     setListening(true);
     try {
       rec.start();
@@ -184,7 +188,7 @@ export default function AssistantPanel() {
   /** `textArg` lets the command bar submit through this same path. */
   async function send(textArg?: string) {
     const text = (textArg ?? input).trim();
-    if (!text || pending) return;
+    if (!text || sending.current) return;
     const next: Message[] = [...messages, { role: "user", content: text }];
     setMessages(next);
     if (textArg === undefined) setInput("");
@@ -207,6 +211,7 @@ export default function AssistantPanel() {
     // something the backend can talk us into. Costs no tokens either.
     const offered = detectDurableFact(text, projects);
 
+    sending.current = true;
     setPending(true);
     if (idleTimer.current) clearTimeout(idleTimer.current);
     // A new question cancels whatever the core was still saying.
@@ -231,6 +236,7 @@ export default function AssistantPanel() {
       // far more use than "backend unreachable". Prefer it; fall back to the
       // generic message only when there is no readable body at all.
       const payload = await res.json().catch(() => null);
+      if (!res.ok) throw new Error("Assistant request failed");
       const reply = payload?.reply;
       if (typeof reply !== "string") throw new Error(`${res.status}`);
       const text = String(reply ?? "");
@@ -255,6 +261,7 @@ export default function AssistantPanel() {
       // Leave the core in its alarm state — the link really is down.
       setSolState("error");
     } finally {
+      sending.current = false;
       setPending(false);
       // Surfaced after the turn settles, whichever way it went. The fact is
       // the USER's, not the model's, so a slow or unreachable backend must not
@@ -268,14 +275,14 @@ export default function AssistantPanel() {
       <div className="flex items-center justify-between mb-2">
         <span className="flex-1 hud-rule" />
         <span className="px-3 font-mono text-[8.5px] uppercase tracking-[0.34em] text-cyan-500/45">
-          Core Console
+          Conversation
         </span>
         <span className="flex-1 hud-rule" style={{ transform: "scaleX(-1)" }} />
       </div>
 
       {/* Backend selector + voice toggle. */}
-      <div className="flex items-center justify-between gap-2 mb-2.5">
-        <div className="flex items-center gap-1.5">
+      <div className="ax-assistant-controls">
+        <div className="ax-voice-controls">
           <button
             type="button"
             onClick={() => {
@@ -305,6 +312,7 @@ export default function AssistantPanel() {
             <button
               key={b}
               type="button"
+              disabled={pending}
               onClick={() => setBackend(b)}
               aria-pressed={backend === b}
               className={`backend-opt ${backend === b ? "is-active" : ""}`}
@@ -316,6 +324,7 @@ export default function AssistantPanel() {
       </div>
 
       <div
+        role="log" aria-live="polite" aria-label="Conversation messages"
         ref={scrollRef}
         className="flex flex-col gap-2 mb-2.5 overflow-y-auto core-console-log"
       >
@@ -357,7 +366,8 @@ export default function AssistantPanel() {
         )}
       </div>
 
-      <div className="flex gap-2">
+      <div className="ax-voice-feedback"><button type="button" className="ax-button" onClick={() => { stopAudio(); setSolState("idle"); }}>Stop speech</button><p>{micReady ? "Microphone available. Push to talk; permission is requested on use." : "Voice input unavailable: use HTTPS and a browser supporting speech recognition. Text input still works."}</p>{micError && <p role="status">{micError}</p>}</div>
+      <div className="ax-message-controls">
         <button
           type="button"
           onClick={toggleMic}
@@ -380,7 +390,8 @@ export default function AssistantPanel() {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && send()}
-          placeholder={listening ? "listening…" : "> query sol"}
+          aria-label="Message to assistant"
+          placeholder={listening ? "Listening…" : "Message your assistant"}
           className="flex-1 min-w-0 bg-slate-900/60 border border-cyan-500/30 rounded px-3 py-2 font-mono text-[12.5px] text-cyan-100 placeholder:text-cyan-500/30 focus:outline-none focus:border-cyan-400/60"
           style={{ boxShadow: "inset 0 0 10px rgba(34,211,238,0.05)" }}
         />
@@ -390,7 +401,7 @@ export default function AssistantPanel() {
           className="px-3 rounded border border-cyan-400/40 bg-cyan-500/10 font-mono text-[10.5px] uppercase tracking-wider hud-glow-text hover:bg-cyan-500/20 disabled:opacity-40 shrink-0"
           aria-label="Send"
         >
-          Send
+          {pending ? "Sending…" : "Send"}
         </button>
       </div>
     </div>

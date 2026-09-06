@@ -10,6 +10,7 @@ export interface CoordinatedSnapshot<T> {
   status?: WidgetResponse<T>["status"];
   updatedAt?: string;
   mock: boolean;
+  configured?: boolean;
   error: string | null;
   freshness: Freshness;
   loading: boolean;
@@ -170,12 +171,16 @@ export class DataCoordinator {
         const payload = (await response.json().catch(() => null)) as WidgetResponse<unknown> | null;
         if (!payload || !["ok", "degraded", "error"].includes(payload.status)) throw new Error("invalid response");
         if (controller.signal.aborted || this.entries.get(entry.key) !== entry) return;
-        if (!response.ok || payload.status === "error") throw new Error("Unable to refresh source.");
+        const absent = response.status === 404 && payload.data !== null && typeof payload.data === "object" && "configured" in payload.data && payload.data.configured === false;
+        if ((!response.ok || payload.status === "error") && !absent) throw new Error("Unable to refresh source.");
+        if (!payload.staleAt && payload.maxAgeMs === undefined) payload.maxAgeMs = this.interval(entry) * 2;
+        if (absent) payload.status = "ok";
         entry.failures = 0;
         entry.lastGood = payload;
         const shown = payload;
         this.emit(entry, {
           data: shown.data,
+          configured: absent ? false : undefined,
           status: payload.status,
           updatedAt: shown.updatedAt,
           mock: shown.mock ?? false,

@@ -131,7 +131,7 @@ function BlockView({
   switch (block.kind) {
     case "heading": {
       const level = Math.min(block.level, 3);
-      const Tag = (`h${Math.min(block.level, 6)}` as unknown) as "h1";
+      const Tag = (`h${Math.min(block.level + 1, 6)}` as unknown) as "h1";
       return (
         <Tag className={`${HEADING_CLASS[level]} mt-6 first:mt-0 mb-2`}>
           <Spans spans={block.spans} onNavigate={onNavigate} known={known} />

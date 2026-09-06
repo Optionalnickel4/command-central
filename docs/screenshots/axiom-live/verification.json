@@ -1,0 +1,515 @@
+{
+  "layout": [
+    {
+      "name": "command-390",
+      "width": 390,
+      "scroll": 390,
+      "h1": 1,
+      "animations": 0,
+      "vitals": {
+        "cls": 0.0789786689102564,
+        "lcp": 260
+      }
+    },
+    {
+      "name": "systems-390",
+      "width": 390,
+      "scroll": 390,
+      "h1": 1,
+      "animations": 0,
+      "vitals": {
+        "cls": 0.003898871794871795,
+        "lcp": 140
+      }
+    },
+    {
+      "name": "agents-390",
+      "width": 390,
+      "scroll": 390,
+      "h1": 1,
+      "animations": 0,
+      "vitals": {
+        "cls": 0.016925117948717948,
+        "lcp": 96
+      }
+    },
+    {
+      "name": "media-390",
+      "width": 390,
+      "scroll": 390,
+      "h1": 1,
+      "animations": 0,
+      "vitals": {
+        "cls": 0.0032808615384615387,
+        "lcp": 236
+      }
+    },
+    {
+      "name": "projects-390",
+      "width": 390,
+      "scroll": 390,
+      "h1": 1,
+      "animations": 0,
+      "vitals": {
+        "cls": 0.01647967948717949,
+        "lcp": 76
+      }
+    },
+    {
+      "name": "activity-390",
+      "width": 390,
+      "scroll": 390,
+      "h1": 1,
+      "animations": 0,
+      "vitals": {
+        "cls": 0.0032808615384615387,
+        "lcp": 60
+      }
+    },
+    {
+      "name": "settings-390",
+      "width": 390,
+      "scroll": 390,
+      "h1": 1,
+      "animations": 0,
+      "vitals": {
+        "cls": 0.007779097435897437,
+        "lcp": 68
+      }
+    },
+    {
+      "name": "command-768",
+      "width": 768,
+      "scroll": 768,
+      "h1": 1,
+      "animations": 0,
+      "vitals": {
+        "cls": 0.031969561523437495,
+        "lcp": 108
+      }
+    },
+    {
+      "name": "systems-768",
+      "width": 768,
+      "scroll": 768,
+      "h1": 1,
+      "animations": 0,
+      "vitals": {
+        "cls": 0.0013107187499999998,
+        "lcp": 80
+      }
+    },
+    {
+      "name": "agents-768",
+      "width": 768,
+      "scroll": 768,
+      "h1": 1,
+      "animations": 0,
+      "vitals": {
+        "cls": 0.03249763203938802,
+        "lcp": 96
+      }
+    },
+    {
+      "name": "media-768",
+      "width": 768,
+      "scroll": 768,
+      "h1": 1,
+      "animations": 0,
+      "vitals": {
+        "cls": 0.00041559374999999995,
+        "lcp": 332
+      }
+    },
+    {
+      "name": "projects-768",
+      "width": 768,
+      "scroll": 768,
+      "h1": 1,
+      "animations": 0,
+      "vitals": {
+        "cls": 0.09612643473307292,
+        "lcp": 260
+      }
+    },
+    {
+      "name": "activity-768",
+      "width": 768,
+      "scroll": 768,
+      "h1": 1,
+      "animations": 0,
+      "vitals": {
+        "cls": 0.00041559374999999995,
+        "lcp": 76
+      }
+    },
+    {
+      "name": "settings-768",
+      "width": 768,
+      "scroll": 768,
+      "h1": 1,
+      "animations": 0,
+      "vitals": {
+        "cls": 0.004178653645833333,
+        "lcp": 88
+      }
+    },
+    {
+      "name": "command-1024",
+      "width": 1024,
+      "scroll": 1024,
+      "h1": 1,
+      "animations": 0,
+      "vitals": {
+        "cls": 0.02940071988105774,
+        "lcp": 112
+      }
+    },
+    {
+      "name": "systems-1024",
+      "width": 1024,
+      "scroll": 1024,
+      "h1": 1,
+      "animations": 0,
+      "vitals": {
+        "cls": 0.0010288162231445312,
+        "lcp": 132
+      }
+    },
+    {
+      "name": "agents-1024",
+      "width": 1024,
+      "scroll": 1024,
+      "h1": 1,
+      "animations": 0,
+      "vitals": {
+        "cls": 0.0156537421643734,
+        "lcp": 96
+      }
+    },
+    {
+      "name": "media-1024",
+      "width": 1024,
+      "scroll": 1024,
+      "h1": 1,
+      "animations": 0,
+      "vitals": {
+        "cls": 0.0010288162231445312,
+        "lcp": 136
+      }
+    },
+    {
+      "name": "projects-1024",
+      "width": 1024,
+      "scroll": 1024,
+      "h1": 1,
+      "animations": 0,
+      "vitals": {
+        "cls": 0.08825028431415557,
+        "lcp": 140
+      }
+    },
+    {
+      "name": "activity-1024",
+      "width": 1024,
+      "scroll": 1024,
+      "h1": 1,
+      "animations": 0,
+      "vitals": {
+        "cls": 0.0003262100219726563,
+        "lcp": 92
+      }
+    },
+    {
+      "name": "settings-1024",
+      "width": 1024,
+      "scroll": 1024,
+      "h1": 1,
+      "animations": 0,
+      "vitals": {
+        "cls": 0.0003262100219726563,
+        "lcp": 132
+      }
+    },
+    {
+      "name": "command-1440",
+      "width": 1440,
+      "scroll": 1440,
+      "h1": 1,
+      "animations": 0,
+      "vitals": {
+        "cls": 0.01879202023353106,
+        "lcp": 140
+      }
+    },
+    {
+      "name": "systems-1440",
+      "width": 1440,
+      "scroll": 1440,
+      "h1": 1,
+      "animations": 0,
+      "vitals": {
+        "cls": 0.0003448029544029706,
+        "lcp": 180
+      }
+    },
+    {
+      "name": "agents-1440",
+      "width": 1440,
+      "scroll": 1440,
+      "h1": 1,
+      "animations": 0,
+      "vitals": {
+        "cls": 0.0015910219847125773,
+        "lcp": 168
+      }
+    },
+    {
+      "name": "media-1440",
+      "width": 1440,
+      "scroll": 1440,
+      "h1": 1,
+      "animations": 0,
+      "vitals": {
+        "cls": 0.0003448029544029706,
+        "lcp": 236
+      }
+    },
+    {
+      "name": "projects-1440",
+      "width": 1440,
+      "scroll": 1440,
+      "h1": 1,
+      "animations": 0,
+      "vitals": {
+        "cls": 0.009325736400462964,
+        "lcp": 168
+      }
+    },
+    {
+      "name": "activity-1440",
+      "width": 1440,
+      "scroll": 1440,
+      "h1": 1,
+      "animations": 0,
+      "vitals": {
+        "cls": 0.0007000961642795138,
+        "lcp": 112
+      }
+    },
+    {
+      "name": "settings-1440",
+      "width": 1440,
+      "scroll": 1440,
+      "h1": 1,
+      "animations": 0,
+      "vitals": {
+        "cls": 0.011747500678168401,
+        "lcp": 96
+      }
+    },
+    {
+      "name": "command-1920",
+      "width": 1920,
+      "scroll": 1920,
+      "h1": 1,
+      "animations": 0,
+      "vitals": {
+        "cls": 0.0170483839586046,
+        "lcp": 200
+      }
+    },
+    {
+      "name": "systems-1920",
+      "width": 1920,
+      "scroll": 1920,
+      "h1": 1,
+      "animations": 0,
+      "vitals": {
+        "cls": 0.00019290152655707468,
+        "lcp": 120
+      }
+    },
+    {
+      "name": "agents-1920",
+      "width": 1920,
+      "scroll": 1920,
+      "h1": 1,
+      "animations": 0,
+      "vitals": {
+        "cls": 0.006978453882005479,
+        "lcp": 116
+      }
+    },
+    {
+      "name": "media-1920",
+      "width": 1920,
+      "scroll": 1920,
+      "h1": 1,
+      "animations": 0,
+      "vitals": {
+        "cls": 0.00019290152655707468,
+        "lcp": 212
+      }
+    },
+    {
+      "name": "projects-1920",
+      "width": 1920,
+      "scroll": 1920,
+      "h1": 1,
+      "animations": 0,
+      "vitals": {
+        "cls": 0.0031964035373263887,
+        "lcp": 232
+      }
+    },
+    {
+      "name": "activity-1920",
+      "width": 1920,
+      "scroll": 1920,
+      "h1": 1,
+      "animations": 0,
+      "vitals": {
+        "cls": 0.00009278862847222223,
+        "lcp": 152
+      }
+    },
+    {
+      "name": "settings-1920",
+      "width": 1920,
+      "scroll": 1920,
+      "h1": 1,
+      "animations": 0,
+      "vitals": {
+        "cls": 0.0002355597601996528,
+        "lcp": 140
+      }
+    }
+  ],
+  "a11y": [
+    {
+      "name": "command-390",
+      "violations": []
+    },
+    {
+      "name": "systems-390",
+      "violations": []
+    },
+    {
+      "name": "agents-390",
+      "violations": []
+    },
+    {
+      "name": "media-390",
+      "violations": []
+    },
+    {
+      "name": "projects-390",
+      "violations": []
+    },
+    {
+      "name": "activity-390",
+      "violations": []
+    },
+    {
+      "name": "settings-390",
+      "violations": []
+    },
+    {
+      "name": "command-1440",
+      "violations": []
+    },
+    {
+      "name": "systems-1440",
+      "violations": []
+    },
+    {
+      "name": "agents-1440",
+      "violations": []
+    },
+    {
+      "name": "media-1440",
+      "violations": []
+    },
+    {
+      "name": "projects-1440",
+      "violations": []
+    },
+    {
+      "name": "activity-1440",
+      "violations": []
+    },
+    {
+      "name": "settings-1440",
+      "violations": []
+    },
+    {
+      "name": "inspector",
+      "violations": []
+    },
+    {
+      "name": "total-failure",
+      "violations": []
+    }
+  ],
+  "errors": [],
+  "checks": [
+    "Inspector: heading focus, Escape, focus restoration",
+    "Inspector deep-link reload",
+    "Keyboard command palette and filtering",
+    "System inventory filtering",
+    "Editable-field shortcut guard",
+    "One-source outage keeps labeled last-known estate",
+    "Online refresh recovery",
+    "Total-source failure does not claim health",
+    "200% equivalent reflow (not browser-menu zoom)"
+  ],
+  "performance": {
+    "windowMs": 59007,
+    "requests": [
+      {
+        "path": "/api/widgets/weather",
+        "at": 1788685219600
+      },
+      {
+        "path": "/api/widgets/calendar",
+        "at": 1788685219600
+      },
+      {
+        "path": "/api/widgets/news",
+        "at": 1788685219600
+      },
+      {
+        "path": "/api/axiom/capabilities",
+        "at": 1788685219600
+      },
+      {
+        "path": "/api/widgets/homelab",
+        "at": 1788685219600
+      },
+      {
+        "path": "/api/sol/status",
+        "at": 1788685219600
+      },
+      {
+        "path": "/api/media",
+        "at": 1788685219600
+      },
+      {
+        "path": "/api/media",
+        "at": 1788685249697
+      },
+      {
+        "path": "/api/widgets/homelab",
+        "at": 1788685249712
+      }
+    ],
+    "count": 9,
+    "decodedJavaScript": 509456,
+    "idleTaskSeconds": 0.10921700000000001,
+    "vitals": {
+      "cls": 0.020664247564621915,
+      "lcp": 148
+    }
+  }
+}

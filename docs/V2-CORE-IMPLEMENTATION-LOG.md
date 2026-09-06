@@ -1,6 +1,6 @@
 # V2-Core — Axiom implementation log
 
-**Current status: Phases 0–3 complete; static design review awaiting Nickel. Production unchanged.**
+**Current status: Phases 0-7 complete on jarvis-v2-core; live-data review ready. Production unchanged.**
 
 ## 2026-09-06 — Phase 0, baseline collected; authentication gate pending
 
@@ -67,3 +67,35 @@ Evidence: 288 tests, lint and build pass. Browser matrix: five widths without do
 Decoded initial JS is 490657 bytes (baseline 527421); zero static API calls is not a live performance result. Remaining live-source, voice/chat, Core Web Vitals and release checks are explicitly deferred. The test instance used a process-scoped trusted-network mode bound only to localhost and is now stopped. No production environment was copied into it. Production PID remains 11960, clean main remains at 90732ec, unauthenticated HTTP remains 401, environment fingerprint unchanged, frozen JARVIS-V2 remains at 1925757. No auth-flow/security/Proxmox/Vault-write changes.
 
 Next: Nickel reviews the static design and interaction map before Phase 4. No production deployment or restart authorized by the test-mode exception.
+
+## 2026-09-06 — Phases 4-7, live migration verified
+
+Nickel approved the static Axiom shell and interaction map, then Phase 4 resumed in the isolated `jarvis-v2-core` worktree. No production checkout switch, service restart, deployment, auth-flow change, or environment modification was performed.
+
+### Live migration
+
+- Connected the Command overview, assessment, attention rail, estate core, inspector, context rail and utilities to existing live Command Central sources through normalized Axiom signals.
+- Migrated Systems, Agents, Media, Projects, Activity and Settings to Axiom primitives while preserving the existing `/sol`, `/vault` and `/legacy/media` compatibility surfaces.
+- Added real Proxmox node-to-guest relationships, template/intentional-stop handling, optional-source configuration handling, freshness metadata defaults, and isolated media-source severity.
+- Preserved direct internal `lib/` source access for server consumers, browser-to-API boundaries, Node `https` Proxmox transport, request origin/body/rate/concurrency guards, and Vault traversal/symlink/explicit-confirm append-only protections.
+- Capped the initial Media operations list behind an explicit show-all control and stabilized live-loading layouts to avoid delayed content layout shift.
+
+### Live verification receipts
+
+- `npm test`: 19 files / 297 tests passed.
+- `npm run lint`: passed.
+- `npm run build`: passed.
+- Sol test turn: HTTP 200 and marker returned.
+- Claude test turn: HTTP 200 and marker returned.
+- Piper synthesis: HTTP 200 audio/wav returned.
+- Browser matrix: Command, Systems, Agents, Media, Projects, Activity and Settings at 390, 768, 1024, 1440 and 1920 CSS pixels.
+- Automated checks: zero page errors, zero target-width overflows, one h1 per checked route, zero WCAG A/AA axe violation groups, max recorded route CLS 0.096, final 59-second-window CLS 0.021, LCP 148 ms.
+- Request inventory: 9 API requests in 59 seconds, down from Phase 0 baseline 19 and below old V2's 18-request measurement.
+- Decoded JavaScript: 509,456 bytes, below Phase 0 baseline 527,421 bytes.
+- Idle main-thread task time in the measured window: 0.109 seconds.
+- Failure checks: one-source stale keeps labeled last-known data, online refresh recovers, total API failure does not claim health.
+- Receipts and screenshots are under `docs/screenshots/axiom-live/`; summary is `docs/AXIOM-LIVE-REVIEW.md`.
+
+### Production boundary
+
+Production remains clean `main` at `90732ec9d15a03e3a07109f590ebd0ee64a46aba`, serving the existing build. Unauthenticated production HTTP still returns 401. The only extra Next process is the isolated loopback review instance on 127.0.0.1:3101, which must be stopped after packaging. Deployment remains a separate explicit approval gate.

@@ -2,9 +2,9 @@
 
 ## Current branch and scope
 
-Production is the existing main build in LXC 220. The jarvis-v2-core branch is an isolated **Axiom static design review**, through Phase 3 only. Do not migrate live data, switch the production checkout, or restart the production service until the applicable review gate is explicitly approved.
+Production is the existing main build in LXC 220. The jarvis-v2-core branch is the Axiom live-migration review branch. Phases 0-7 are complete in an isolated worktree. Do not switch the production checkout or restart the production service until deployment is explicitly approved.
 
-Read docs/AXIOM-DESIGN-REVIEW.md and docs/V2-CORE-IMPLEMENTATION-LOG.md for current evidence and boundaries. JARVIS-V2 at 1925757 is frozen reference logic, not a branch to merge. Earlier visual briefs in docs are historical, not current instructions.
+Read docs/AXIOM-LIVE-REVIEW.md, docs/AXIOM-DESIGN-REVIEW.md, and docs/V2-CORE-IMPLEMENTATION-LOG.md for current evidence and boundaries. JARVIS-V2 at 1925757 is frozen reference logic, not a branch to merge. Earlier visual briefs in docs are historical, not current instructions.
 
 ## Security and operating rules
 
@@ -23,14 +23,14 @@ Read docs/AXIOM-DESIGN-REVIEW.md and docs/V2-CORE-IMPLEMENTATION-LOG.md for curr
 
 - Next.js 16 / React 19 / TypeScript / Tailwind. Keep the framework and self-hosted fonts.
 - components/dashboard-shell.tsx wraps the Axiom shell, which consumes semantic surfaces from components/widgets/registry.ts. Do not hand-import domain widgets into the shell.
-- components/axiom contains the fixture shell, panes, modal/state primitives and review data.
+- components/axiom contains the live shell, normalized source adapters, panes, modal/state primitives, and retained fixture references for static-review history.
 - app/axiom.css owns Axiom tokens, responsive geometry, z-index, focus and forced-color/reduced-motion behavior.
 - Registry metadata: stable id, domain, priority, surface, density, visibility, destination, capability and renderer.
 - lib/operational-health.ts normalizes health, freshness, severity and incident order.
 - lib/fetcher.ts coordinates shared requests, cadence, visibility, online state, backoff, cancellation and last-known-good freshness. Preserve focused behavior tests.
 - lib/presentation-state.ts supplies shared labels and non-color state symbols.
 - Source-specific routes and lib functions are retained for later migration, except sports integration, which is removed only from V2-Core.
-- Previous Sol/Vault/media functionality remains at /sol, /vault and /legacy/media for migration reference. It has not received final Axiom interaction styling.
+- Compatibility surfaces remain at /sol and /vault, and legacy media remains at /legacy/media. The primary /agents, /projects, and /media destinations now use Axiom styling over existing protected routes.
 - Historical HUD CSS remains only for those legacy views; boot, orbital home clusters, home ticker and permanent orb are retired from Axiom.
 
 ## Adding a source later
@@ -39,7 +39,7 @@ Create a force-dynamic server route wrapping the existing or new lib source func
 
 ## Verification
 
-Run npm test, npm run lint, npm run build and git diff --check. Use the isolated localhost-only trusted-network server for browser tests, never a modified production auth flow. node scripts/axiom-verify.mjs records static-review widths, semantics, accessibility, interactions and screenshots. Test receipts are under docs/screenshots/axiom-static.
+Run npm test, npm run lint, npm run build and git diff --check. Use the isolated localhost-only trusted-network server for browser tests, never a modified production auth flow. node scripts/axiom-verify.mjs records static-review widths, semantics, accessibility, interactions and screenshots. node scripts/axiom-live-verify.mjs records live-route widths, accessibility, interactions, failure recovery, request counts, bundle size, idle task time, and screenshots. Test receipts are under docs/screenshots/axiom-static and docs/screenshots/axiom-live.
 
 After live migration, additionally verify direct/lib or isolated HTTP live Proxmox data, Sol and Claude turns, Piper and microphone capabilities, media partial failures, Vault protection, request counts, real failure recovery and performance. Static sample success must not be described as those live checks passing.
 

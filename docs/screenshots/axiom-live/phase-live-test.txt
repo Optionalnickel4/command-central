@@ -1,0 +1,41 @@
+
+> command-central@0.1.0 test
+> vitest run
+
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.11 [39m[90m/home/builder/command-central-axiom[39m
+
+ [32m✓[39m tests/usage-log.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 261[2mms[22m[39m
+ [32m✓[39m tests/data-coordinator.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 148[2mms[22m[39m
+[90mstderr[2m | tests/vault-write.test.ts[2m > [22m[2mappendBullet — append-only, against a real directory[2m > [22m[2mrejects a well-formed name with no file rather than creating one
+[22m[39mvault append failed: ENOENT (not-a-real-note)
+
+[90mstderr[2m | tests/vault-write.test.ts[2m > [22m[2mappendBullet — append-only, against a real directory[2m > [22m[2mneither reads nor appends through a project-note symlink
+[22m[39mvault append failed: ELOOP (trap)
+
+[90mstderr[2m | tests/vault-write.test.ts[2m > [22m[2mappendBullet — append-only, against a real directory[2m > [22m[2mreturns a clean error when the vault directory is gone
+[22m[39mvault append failed: ENOENT (vlr-api)
+
+ [32m✓[39m tests/vault-write.test.ts [2m([22m[2m36 tests[22m[2m)[22m[32m 73[2mms[22m[39m
+ [32m✓[39m tests/news.test.ts [2m([22m[2m35 tests[22m[2m)[22m[32m 36[2mms[22m[39m
+ [32m✓[39m tests/calendar.test.ts [2m([22m[2m29 tests[22m[2m)[22m[32m 42[2mms[22m[39m
+ [32m✓[39m tests/vault.test.ts [2m([22m[2m32 tests[22m[2m)[22m[32m 25[2mms[22m[39m
+ [32m✓[39m tests/vault-route.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 23[2mms[22m[39m
+ [32m✓[39m tests/media.test.ts [2m([22m[2m37 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m✓[39m tests/core-boundaries.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 48[2mms[22m[39m
+ [32m✓[39m tests/request-security.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+ [32m✓[39m tests/projects.test.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+ [32m✓[39m tests/markdown.test.ts [2m([22m[2m17 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+ [32m✓[39m tests/weather.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m tests/proxy.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+ [32m✓[39m tests/operational-health.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m tests/axiom-adapters.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m tests/sol.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m tests/chat-request.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m tests/response-status.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m19 passed[39m[22m[90m (19)[39m
+[2m      Tests [22m [1m[32m297 passed[39m[22m[90m (297)[39m
+[2m   Start at [22m 09:02:26
+[2m   Duration [22m 3.91s[2m (transform 353ms, setup 0ms, import 778ms, tests 753ms, environment 2ms)[22m
+

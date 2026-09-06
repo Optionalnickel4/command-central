@@ -118,3 +118,15 @@ describe("coordinator failure and freshness regression cases", () => {
     expect(store.snapshot("/safe").error).toBe("Unable to refresh source."); off();
   });
 });
+
+describe('Axiom optional sources',()=>{
+ afterEach(()=>vi.useRealTimers());
+ it('preserves an explicit unconfigured 404 without converting it to an outage',async()=>{
+  const store=new DataCoordinator(async()=>new Response(JSON.stringify({status:'error',updatedAt:new Date().toISOString(),data:{configured:false}}),{status:404}));
+  const off=store.subscribe('/optional',1000,vi.fn());await vi.waitFor(()=>expect(store.snapshot('/optional').loading).toBe(false));
+  expect(store.snapshot('/optional')).toMatchObject({configured:false,error:null,data:{configured:false}});off();
+ });
+ it('expires legacy responses without metadata at twice their source cadence',async()=>{
+  vi.useFakeTimers();const store=new DataCoordinator(async()=>payload(9));const off=store.subscribe('/legacy',1000,vi.fn());await flush();store.setVisible(false);await vi.advanceTimersByTimeAsync(2000);expect(store.snapshot('/legacy').freshness).toBe('stale');off();
+ });
+});

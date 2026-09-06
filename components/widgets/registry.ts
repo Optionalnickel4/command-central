@@ -3,7 +3,7 @@ import { AgentsPane, ContextUtilities, EstatePane, OperationsPane } from "@/comp
 import type { AxiomPaneProps } from "@/components/axiom/panes";
 
 /** Single composition seam. The shell knows surfaces, not source widgets.
- * Live renderers replace these fixture renderers only after design approval. */
+ * Normalized live renderers share the approved design primitives. */
 export interface AxiomFeature {
  id: string; domain: string; priority: number;
  surface: "workspace" | "support" | "utilities";

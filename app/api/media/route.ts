@@ -57,7 +57,7 @@ const MEDIA_TTL_MS = Number(process.env.MEDIA_TTL_MS) > 0
  * 200 while any of the six answered; 503 only when none did. Derived from the
  * assembled payload, so a cache hit reports exactly the status its body earned.
  */
-const statusFor = (data: MediaData) => aggregateStatus(Object.values(data));
+const statusFor = (data: MediaData) => aggregateStatus(Object.values(data).filter(s => !(!s.ok && /not set$/.test(s.error ?? ""))));
 
 export async function GET() {
   if (cache && Date.now() - cache.at < MEDIA_TTL_MS) {
@@ -88,6 +88,7 @@ export async function GET() {
     // down and there is no page left to draw.
     status: statusFor(data) === OK ? "ok" : "error",
     updatedAt: new Date().toISOString(),
+    maxAgeMs: 60000,
     data
   };
   cache = { at: Date.now(), body };

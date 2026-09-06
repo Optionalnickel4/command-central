@@ -16,10 +16,12 @@ import { pve } from "@/lib/pve";
 
 export interface HomelabData {
   nodes: { name: string; online: boolean; cpuPct: number; ramUsedGb: number; ramTotalGb: number }[];
-  guests: { vmid: number; name: string; type: "lxc" | "qemu"; status: "ok" | "error"; cpuPct: number; memPct: number }[];
+  guests: { vmid: number; template?: boolean; node?: string; name: string; type: "lxc" | "qemu"; status: "ok" | "error"; cpuPct: number; memPct: number }[];
 }
 
 export interface GuestDetail {
+  /** False when the detail status read failed; do not present fallback zeroes as telemetry. */
+  statusKnown?: boolean;
   vmid: number;
   node: string;
   kind: "lxc" | "qemu";
@@ -106,8 +108,10 @@ export async function fetchHomelab(): Promise<HomelabData> {
     }));
   const guests: HomelabData["guests"] = resources
     .filter((r: { type: string }) => r.type === "lxc" || r.type === "qemu")
-    .map((g: { vmid: number; name?: string; type: string; status: string; cpu: number; mem: number; maxmem: number }) => ({
+    .map((g: { vmid: number; template?: number; node?: string; name?: string; type: string; status: string; cpu: number; mem: number; maxmem: number }) => ({
       vmid: g.vmid,
+      node: g.node,
+      template: g.template === 1,
       name: g.name ?? `guest-${g.vmid}`,
       type: g.type as "lxc" | "qemu",
       status: g.status === "running" ? "ok" : "error",
@@ -186,6 +190,7 @@ export async function fetchHomelabDetail(): Promise<HomelabDetail> {
         const diskBytes = num(status?.disk);
         const maxDiskBytes = num(status?.maxdisk);
         const detail: GuestDetail = {
+          statusKnown: status !== null,
           vmid: g.vmid,
           node: g.node,
           kind: g.kind,

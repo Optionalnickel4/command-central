@@ -1,42 +1,37 @@
-"use client";
-import Link from "next/link";
-import { useState } from "react";
-import type { Entity, Scenario } from "./fixtures";
-import { Icon, Pane, StateBadge } from "./primitives";
-export interface AxiomPaneProps { entities: Entity[]; scenario: Scenario; inspect: (id: string) => void }
-export function EstatePane({ entities, scenario, inspect }: AxiomPaneProps) {
- const [view, setView] = useState<"topology" | "list">("topology");
- const unavailable = scenario === "outage";
- const stale = scenario === "stale";
- const guests = entities.slice(1);
- return <Pane title="Estate" className="ax-estate" action={<div className="ax-view-switch" role="group" aria-label="Estate view"><button type="button" aria-pressed={view === "topology"} onClick={() => setView("topology")}>Topology</button><button type="button" aria-pressed={view === "list"} onClick={() => setView("list")}>List</button></div>}>
-   <div className="ax-estate-stats"><div><strong>{unavailable ? "—" : "6 / 6"}</strong><span>{stale ? "Last observed guests" : "Guests available"}</span></div><div><strong>{unavailable ? "—" : "18"}<small>{!unavailable && "%"}</small></strong><span>Node CPU{stale && " · stale"}</span></div><div><strong>{unavailable ? "—" : "38"}<small>{!unavailable && " / 96 GB"}</small></strong><span>Memory{stale && " · stale"}</span></div><span className="ax-stamp">{stale ? "◷ Observed 8m ago" : unavailable ? "× Observation failed" : "✓ Observed 14s ago"}</span></div>
-   {view === "topology" ? <div className="ax-topology">
-     <div className="ax-topology-grid" aria-hidden="true"/>
-     <svg className="ax-connections" aria-hidden="true" viewBox="0 0 800 330" preserveAspectRatio="none"><path d="M400 165H270V55H175M270 165H175M270 165V275H175M400 165H530V55H625M530 165H625M530 165V275H625"/></svg>
-     <div className="ax-node-core"><span className="ax-eyebrow">Compute · 01</span><button className="ax-core-button" type="button" onClick={() => inspect("node")} aria-label="Inspect Workshop"><Icon name="systems"/><strong>Workshop</strong><span>Proxmox node</span></button><StateBadge state={entities[0].state}/></div>
-     <div className="ax-node-group ax-node-group-left">{guests.slice(0, 3).map(e => <Node key={e.id} entity={e} inspect={inspect}/>)}</div>
-     <div className="ax-node-group ax-node-group-right">{guests.slice(3).map(e => <Node key={e.id} entity={e} inspect={inspect}/>)}</div>
-     <div className="ax-map-caption">Known node → guest relationships</div>
-   </div> : <div className="ax-entity-list">{entities.map(e => <div key={e.id}><button type="button" className="ax-text-button" onClick={() => inspect(e.id)}>Inspect {e.name}</button><span>{e.kind}</span><StateBadge state={e.state}/></div>)}</div>}
-   <div className="ax-mobile-estate"><p>1 compute node · 6 guests</p><StateBadge state={entities[0].state}/><button type="button" className="ax-button" onClick={() => inspect("node")}>Inspect estate <Icon name="arrow"/></button></div>
-   <div className="ax-pane-footer"><span>{stale ? "Last known values · refresh overdue" : unavailable ? "Availability not confirmed" : "Infrastructure · intelligence · media"}</span><Link href="/systems">Open Systems <Icon name="arrow"/></Link></div>
- </Pane>;
+'use client';
+import Link from 'next/link';
+import { useState } from 'react';
+import type { AxiomModel, EstateEntity } from '@/lib/axiom-model';
+import { observation } from '@/lib/axiom-model';
+import { Icon, Pane, PanelEmpty, StateBadge } from './primitives';
+import { useUtilities } from './live-data';
+export interface AxiomPaneProps { model: AxiomModel; inspect: (id:string)=>void }
+export function EstatePane({model,inspect}:AxiomPaneProps) {
+ const [expanded,setExpanded]=useState(false);
+ const [view,setView]=useState<'topology'|'list'>('topology');
+ const nodes=model.entities.filter(e=>e.kind==='Proxmox node');
+ const guests=model.entities.filter(e=>e.kind!=='Proxmox node');
+ const source=model.signals.find(s=>s.id==='estate');
+ return <Pane title="Estate" className="ax-estate" action={<div className="ax-view-switch" role="group" aria-label="Estate view">{(['topology','list'] as const).map(v=><button type="button" key={v} aria-pressed={v===view} onClick={()=>setView(v)}>{v==='topology'?'Topology':'List'}</button>)}</div>}>
+ <div className="ax-estate-stats"><div><strong>{model.entities.length ? `${guests.filter(e=>e.online).length} / ${guests.length}` : '—'}</strong><span>Guests last observed running</span></div><div><strong>{nodes.length || '—'}</strong><span>Compute nodes</span></div><span className="ax-stamp">{source?.state==='stale'?'Last known · ':''}{observation(source?.observedAt)}</span></div>
+ {!model.entities.length ? <PanelEmpty>{source?.detail ?? 'Reading estate inventory…'}</PanelEmpty> : view==='list' ? <EntityList entities={model.entities} inspect={inspect}/> : <div className="ax-live-topology">{nodes.map(n=><div className="ax-estate-group" key={n.id}><div className="ax-live-core"><button type="button" className="ax-core-button" onClick={()=>inspect(n.id)} aria-label={`Inspect ${n.name}`}><Icon name="systems"/><strong>{n.name}</strong><span>Proxmox node</span></button><StateBadge state={n.state}/><p>{n.cpu === null ? 'CPU unavailable' : `${n.cpu}% CPU`} · {n.memory}</p></div><div className="ax-live-guests" aria-label={`Guests on ${n.name}`}>{guests.filter(g=>g.parentId===n.id).slice(0,expanded?undefined:6).map(g=><EntityNode key={g.id} entity={g} inspect={inspect}/>)}</div></div>)}{guests.length>6&&<button className="ax-button" type="button" onClick={()=>setExpanded(!expanded)} aria-expanded={expanded}>{expanded?"Show compact estate":`Show all ${guests.length} guests`}</button>}{guests.some(g=>!nodes.some(n=>n.id===g.parentId)) && <><p>Guests without a confirmed host relationship</p><EntityList entities={guests.filter(g=>!nodes.some(n=>n.id===g.parentId))} inspect={inspect}/></>}</div>}
+ <div className="ax-pane-footer"><span>Known host → guest relationships only</span><Link href="/systems">Open Systems <Icon name="arrow"/></Link></div></Pane>;
 }
-function Node({ entity: e, inspect }: { entity: Entity; inspect: (id: string) => void }) {
- return <div className={"ax-node ax-node-" + e.state}><span className="ax-eyebrow">{e.domain}</span><button type="button" onClick={() => inspect(e.id)} aria-label={"Inspect " + e.name}><strong>{e.name}</strong><Icon name="arrow"/></button><StateBadge state={e.state}/></div>;
+export function EntityList({entities,inspect}:{entities:EstateEntity[];inspect:(id:string)=>void}) {
+ return <div className="ax-entity-list">{entities.map(e=><div key={e.id}><button type="button" className="ax-text-button" onClick={()=>inspect(e.id)}>Inspect {e.name}</button><span>{e.kind}</span><StateBadge state={e.state}/></div>)}</div>;
 }
-export function OperationsPane({ scenario }: AxiomPaneProps) {
- const down = scenario === "outage", stale = scenario === "stale";
+function EntityNode({entity:e,inspect}:{entity:EstateEntity;inspect:(id:string)=>void}) {
+ return <div className={'ax-node ax-node-'+e.state}><span className="ax-eyebrow">{e.kind}</span><button type="button" onClick={()=>inspect(e.id)} aria-label={`Inspect ${e.name}`}><strong>{e.name}</strong><Icon name="arrow"/></button><StateBadge state={e.state}/></div>;
+}
+export function OperationsPane({model}:AxiomPaneProps) {
  return <Pane title="Active operations" action={<Link href="/media" aria-label="View media operations"><Icon name="arrow"/></Link>}>
-   <div className="ax-operation"><div><span className="ax-eyebrow">Media · Library import</span><h3>{down ? "Operations unavailable" : "Library update"}</h3><p>{down ? "The source could not be reached." : stale ? "Last observed progress · 8m ago" : scenario === "healthy" ? "Processing normally · 3m remaining" : "Waiting for import · 12m elapsed"}</p></div><span className="ax-operation-number">{down ? "—" : "84%"}<span>{down ? "Unknown" : stale ? "Stale" : "Complete"}</span></span></div>
-   <div className="ax-progress" role="progressbar" aria-label="Sample library import" aria-valuenow={down ? undefined : 84} aria-valuemin={0} aria-valuemax={100}><span style={{ width: down ? "0%" : "84%" }}/></div>
-   <div className="ax-pane-footer"><span>{down ? "No current observation" : stale ? "Values may have changed" : "Read-only observation"}</span><Link href="/media">View queue <Icon name="arrow"/></Link></div>
- </Pane>;
+ {!model.operations.length ? <PanelEmpty>{model.signals.some(s=>s.domain==='media'&&s.state==='healthy') ? 'No active work in the returned media observations.' : 'No current operation data. Check media source status.'}</PanelEmpty> : model.operations.slice(0,3).map(o=><div className="ax-operation" key={o.id}><div><h3>{o.title}</h3><p>{o.detail}{o.stale?' · Last known':''}</p></div>{o.progress!==undefined&&<span className="ax-operation-number">{o.progress}%</span>}</div>)}<div className="ax-pane-footer"><span>Read-only · up to 3 recent operations</span><Link href="/media">View operations <Icon name="arrow"/></Link></div></Pane>;
 }
-export function AgentsPane({ entities, inspect }: AxiomPaneProps) {
- return <Pane title="Intelligence" action={<Link href="/agents" aria-label="View agents"><Icon name="arrow"/></Link>}><div className="ax-agent-summary"><div className="ax-agent-mark"><Icon name="agents"/></div><div><h3>{entities.find(e => e.id === "sol")!.state === "down" ? "Sol is unavailable" : entities.find(e => e.id === "sol")!.state === "stale" ? "Sol status is stale" : "Sol is standing by"}</h3><p>Text and voice workspace</p></div></div><div className="ax-agent-status"><StateBadge state={entities.find(e => e.id === "sol")!.state}/><span>No active turn</span></div><div className="ax-pane-footer"><span>Sol · Claude · Piper</span><button className="ax-text-button" type="button" onClick={() => inspect("sol")}>Inspect agent <Icon name="arrow"/></button></div></Pane>;
+export function AgentsPane({model}:AxiomPaneProps) {
+ const s=model.signals.find(s=>s.id==='sol');
+ return <Pane title="Intelligence"><div className="ax-agent-summary"><div className="ax-agent-mark"><Icon name="agents"/></div><div><h3>Sol / OpenClaw</h3><p>{s?.detail ?? 'Reading runtime telemetry…'}</p></div></div><div className="ax-agent-status">{s&&<StateBadge state={s.state}/>}<span>{observation(s?.observedAt)}</span></div><div className="ax-pane-footer"><span>Sol · Claude · Piper</span><Link href="/agents">Open Agents <Icon name="arrow"/></Link></div></Pane>;
 }
 export function ContextUtilities() {
- return <section className="ax-utilities" aria-label="Context utilities"><div><Icon name="sun"/><span><strong>22° · Clear</strong><small>Sample weather</small></span></div><div><span className="ax-utility-number">02</span><span><strong>Two upcoming events</strong><small>Next · Workshop review, 14:00</small></span></div><Link href="/activity"><span><strong>Daily briefing</strong><small>Context, kept in perspective</small></span><Icon name="arrow"/></Link></section>;
+ const utilities=useUtilities();
+ return <section className="ax-utilities" aria-label="Context utilities">{utilities.map(u=><div key={u.id}><Icon name={u.id==='weather'?'sun':'activity'}/><span><strong>{u.title}</strong><small>{u.detail}</small>{u.state&&u.state!=='healthy'&&<StateBadge state={u.state}/>}</span></div>)}</section>;
 }
