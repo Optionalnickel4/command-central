@@ -1,6 +1,6 @@
 # Command Central
 
-A self-hosted JARVIS-style dashboard for a homelab. It brings live Proxmox status, an AI assistant with voice, OpenClaw agent stats, read-only media services, and Valorant esports into one HUD.
+A self-hosted JARVIS-style dashboard for a homelab. It brings live Proxmox status, an AI assistant with voice, OpenClaw agent stats, read-only media services into one HUD.
 
 Built with Next.js 16 (App Router), TypeScript, and Tailwind. There is no database: each panel polls its own server-side API route and fails independently when its backend is unavailable.
 
@@ -13,7 +13,6 @@ Built with Next.js 16 (App Router), TypeScript, and Tailwind. There is no databa
 - **Voice** — Piper TTS proxy with orb visualization
 - **Sol stats** — OpenClaw status, sessions, audit, capabilities, and usage
 - **Media** — read-only Jellyfin, Sonarr, Radarr, Prowlarr, qBittorrent, and Jellyseerr
-- **Esports** — scoreboard, standings, stats, ticker, and player radar via [vlr-api](https://github.com/Optionalnickel4/vlr-api)
 
 Weather, calendar, and news use live Open-Meteo, Google Calendar, and RSS sources.
 
@@ -115,17 +114,6 @@ a single `PROJECTS.md` on 152 through the `cc-projects` wrapper; `lib/projects.t
 still exists but nothing calls it. If the mount is missing the project section
 is simply absent from the snapshot.
 
-### Esports
-
-```dotenv
-VLR_API_URL=http://your-vlr-api:8000
-ENABLE_ESPORTS=false
-```
-
-The API is a separate self-hosted service. Without it, esports routes return unavailable.
-
-`ENABLE_ESPORTS` defaults to on when unset. Set it to `false` if you do not run vlr-api: the esports panels, the `/esports/player/[id]` route and the command-bar entry are removed, and nothing in the app calls vlr-api — including the assistant's context snapshot and its esports lookups. The dashboard page is prerendered, so run `npm run build` after changing the flag — a restart alone keeps the old value.
-
 ### Media
 
 Configure any subset; each service is independent.
@@ -154,7 +142,6 @@ app/
   page.tsx                         dashboard
   sol/page.tsx                     OpenClaw stats
   media/page.tsx                   media overview
-  esports/player/[id]/             player radar
   api/chat/route.ts                 SOL / CLAUDE assistant
   api/tts/route.ts                  Piper proxy
   api/media/route.ts                combined media payload
@@ -167,7 +154,6 @@ components/
   widgets/registry.ts               widget placement
 lib/
   pve.ts                            Proxmox client
-  vlr.ts                            vlr-api client
   media.ts                          media clients
   sol.ts / projects.ts              restricted SSH links
   fetcher.ts                        widget polling hook

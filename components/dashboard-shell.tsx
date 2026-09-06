@@ -9,7 +9,6 @@ import SolOrb from "@/components/sol-orb";
 import CommandBar from "@/components/command-bar";
 import { SolStateProvider } from "@/components/sol-state";
 import { HomelabFeedProvider } from "@/components/homelab-feed";
-import { esportsEnabled } from "@/lib/features";
 
 /** Small reticle mark that reads as the system's sigil. */
 function Sigil() {
@@ -180,7 +179,7 @@ export default function DashboardShell() {
         {/* Console base: vitals marquee above the persistent command bar */}
         <div className="power-on mt-4 flex flex-col gap-2" style={{ ["--i" as string]: 8 }}>
           <Ticker />
-          <CommandBar esports={esportsEnabled()} />
+          <CommandBar />
         </div>
       </main>
 

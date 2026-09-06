@@ -16,15 +16,13 @@ import { formatUptime } from "@/lib/format";
  * sol-state.tsx), so there is still exactly one place that talks to the
  * chat route.
  */
-export default function CommandBar({ esports }: { esports: boolean }) {
+export default function CommandBar() {
   const { data } = useHomelabFeed();
   const { submit } = useSolState();
   const [command, setCommand] = useState("");
   const [sessionSec, setSessionSec] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
-  // ENABLE_ESPORTS is a server-side read, so the resolved flag arrives as a
-  // prop from the shell — process.env is not readable in the browser.
-  const sections = getAllSections(esports);
+  const sections = getAllSections();
 
   // How long this cockpit has been open.
   useEffect(() => {

@@ -2,9 +2,6 @@ import { NextResponse } from "next/server";
 import { execFile } from "child_process";
 import { extractSolUsage, recordTurn, type UsageTurn } from "@/lib/usage-log";
 import { withContext } from "@/lib/context-snapshot";
-import {
-  PREPASS_PROMPT, looksLikeEsports, parseIntent, parsePrepass, performLookup
-} from "@/lib/lookup-intent";
 // Request-shape validation is a pure function of the parsed body, so it lives
 // in lib/ where it can be unit-tested without an HTTP round trip.
 import { validateChatBody, type AssistantBackend } from "@/lib/chat-request";
@@ -150,43 +147,10 @@ async function handlePost(req: Request) {
   const startedAt = Date.now();
   try {
     // Give whichever backend is active a compact live view of the dashboard, so
-    // it can answer about containers/esports/its own stats instead of declining.
+    // it can answer about containers and its own stats instead of declining.
     // A failing source degrades to "unavailable" inside the snapshot; it never
     // blocks the turn.
-    // ONE bounded esports lookup per turn: decide what (if anything) to fetch,
-    // fetch it, and attach the result so the model answers from real data.
-    // Keyword parse first (free); only an esports-shaped question that it can't
-    // classify pays for a cheap JSON pre-pass through the active backend.
-    let intent = parseIntent(last.content);
-    if (intent.kind === "none" && looksLikeEsports(last.content)) {
-      try {
-        const probe =
-          chosen === "sol"
-            ? (await runSol(PREPASS_PROMPT(last.content))).text
-            : await runClaude(PREPASS_PROMPT(last.content));
-        intent = parsePrepass(probe);
-      } catch {
-        /* pre-pass is best-effort; fall through with no lookup */
-      }
-    }
-    const lookup = await performLookup(intent).catch(() => null);
-    if (lookup) {
-      console.log(`chat lookup: ${intent.kind}("${intent.query}") via ${intent.via} -> found=${lookup.found}`);
-    }
-
-    const base = await withContext(last.content).catch(() => last.content);
-    const prompt = lookup
-      ? [
-          base,
-          "",
-          `[ESPORTS LOOKUP — live vlr-api result for this question]`,
-          lookup.text,
-          "[END LOOKUP]",
-          lookup.found
-            ? "Answer using this lookup data."
-            : "The lookup found nothing — say so plainly; do not invent a result."
-        ].join("\n")
-      : base;
+    const prompt = await withContext(last.content).catch(() => last.content);
 
     let reply: string;
     let usage: Partial<UsageTurn> = {};

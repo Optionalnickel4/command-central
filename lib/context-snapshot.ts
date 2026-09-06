@@ -1,15 +1,12 @@
 import { formatUptime } from "@/lib/format";
 import { getVaultProjectStatus } from "@/lib/vault";
-import { normalizeMatch, unwrap, vlr, type VlrMatch } from "@/lib/vlr";
-import { esportsEnabled } from "@/lib/features";
 import { fetchHomelab, fetchHomelabDetail, type HomelabData, type HomelabDetailData } from "@/lib/homelab";
-import { fetchEsportsMatches, fetchEsportsRankings, type EsportsMatchesData, type EsportsRankingsData } from "@/lib/esports";
 import { fetchSolStatus, type SolStatusData } from "@/lib/sol-status";
 import { fetchSolUsage, type SolUsageData } from "@/lib/usage-log";
 
 /**
  * Compact live snapshot of the dashboard, prepended to every chat turn so the
- * assistant can answer about the homelab, esports and its own stats instead of
+ * assistant can answer about the homelab and its own stats instead of
  * saying it can't see them.
  *
  * Built by calling the dashboard's OWN data functions — the same ones its API
@@ -67,24 +64,11 @@ const pct = (used: number, total: number) => (total > 0 ? Math.round((used / tot
 export async function buildContextSnapshot(): Promise<string> {
   if (cache && Date.now() - cache.at < CACHE_MS) return cache.text;
 
-  // With ENABLE_ESPORTS off the esports slice is simply absent — no fetch is
-  // attempted, so a turn costs nothing and injects no "unavailable" noise.
-  const esports = esportsEnabled();
-
-  const [homelab, detailEnvelope, matches, rankings, solStatus, usage, results, projects] = await Promise.all([
+  const [homelab, detailEnvelope, solStatus, usage, projects] = await Promise.all([
     source<HomelabData>(fetchHomelab),
     source(fetchHomelabDetail),
-    esports ? source<EsportsMatchesData>(fetchEsportsMatches) : Promise.resolve(null),
-    esports ? source<EsportsRankingsData>(fetchEsportsRankings) : Promise.resolve(null),
     source<SolStatusData>(fetchSolStatus, SLOW_SOURCE_TIMEOUT_MS),
     source<SolUsageData>(fetchSolUsage),
-    // No widget route exposes results, so read them straight from vlr-api
-    // (same client the panels use). Failure just drops the RECENT lines.
-    esports
-      ? vlr<unknown>("/matches/results", 3000)
-          .then((raw) => unwrap<VlrMatch>(raw).map(normalizeMatch))
-          .catch(() => null)
-      : Promise.resolve(null),
     // Lifecycle, not health: the shared Obsidian vault on the local bind
     // mount, cached 10min and trimmed. Replaced the cc-projects SSH read of
     // PROJECTS.md on 152 — same context, no network hop. Returns null (section
@@ -145,45 +129,6 @@ export async function buildContextSnapshot(): Promise<string> {
 
   lines.push(`ALERTS: ${alerts.length ? alerts.join("; ") : "none — all nominal"}`);
 
-  // --- Esports (richer slice: broad questions answer without a lookup) ----
-  // Skipped wholesale when the section is disabled for this instance.
-  if (esports) {
-    if (matches) {
-      const live: any[] = matches.live ?? [];
-      const upcoming: any[] = matches.upcoming ?? [];
-      if (live.length) {
-        lines.push(`ESPORTS LIVE (${live.length}):`);
-        for (const m of live.slice(0, 3)) {
-          lines.push(`  ${m.teamA} ${m.scoreA ?? "-"}\u2013${m.scoreB ?? "-"} ${m.teamB} (${m.event ?? "?"}${m.series ? `, ${m.series}` : ""})`);
-        }
-      } else {
-        lines.push("ESPORTS LIVE: none right now");
-      }
-      if (upcoming.length) {
-        lines.push("ESPORTS NEXT:");
-        for (const m of upcoming.slice(0, 3)) {
-          lines.push(`  ${m.teamA} vs ${m.teamB} in ${m.eta ?? m.time ?? "?"} (${m.event ?? "?"})`);
-        }
-      }
-    } else {
-      lines.push("ESPORTS: unavailable (vlr-api not responding)");
-    }
-
-    if (results?.length) {
-      lines.push("ESPORTS RECENT:");
-      for (const m of results.slice(0, 3)) {
-        lines.push(`  ${m.teamA} ${m.scoreA ?? "-"}\u2013${m.scoreB ?? "-"} ${m.teamB} (${m.event ?? "?"})`);
-      }
-    }
-
-    if (rankings?.teams?.length) {
-      const top = rankings.teams.slice(0, 5)
-        .map((t: any) => `${t.rank}. ${t.team} ${t.rating ?? "?"}`)
-        .join(" | ");
-      lines.push(`ESPORTS TOP TEAMS (regional ladder): ${top}`);
-    }
-  }
-
   // --- Sol's own stats ---------------------------------------------------
   if (solStatus) {
     const t = solStatus.tasks ?? {};
@@ -212,12 +157,8 @@ export async function buildContextSnapshot(): Promise<string> {
     lines.push(projects);
   }
 
-  // Two variants, not a patched string: with esports off the model must not be
-  // told it can answer about fixtures or that a lookup might arrive.
   lines.push(
-    esports
-      ? "YOU CAN ANSWER FROM THIS: any container's status/IP/CPU/memory/uptime, whether anything is wrong, current esports fixtures/results/rankings, and your own task/session/token stats. For a project (vlr-api, mrvl-api, ...), \"status\" means the PROJECT STATUS section \u2014 its phase, what shipped, what is next \u2014 NOT whether its service is up; only answer with uptime if the user explicitly asks about health, responding or downtime. For a SPECIFIC player, team, match or region not shown above, a live vlr-api lookup is attached under [ESPORTS LOOKUP] when relevant. Use these numbers rather than saying you lack access."
-      : "YOU CAN ANSWER FROM THIS: any container's status/IP/CPU/memory/uptime, whether anything is wrong, and your own task/session/token stats. For a project (vlr-api, mrvl-api, ...), \"status\" means the PROJECT STATUS section \u2014 its phase, what shipped, what is next \u2014 NOT whether its service is up; only answer with uptime if the user explicitly asks about health, responding or downtime. Esports is not enabled on this instance (ENABLE_ESPORTS=false): say so plainly if asked about Valorant matches, teams or players \u2014 there is no esports data to look up. Use these numbers rather than saying you lack access."
+    'YOU CAN ANSWER FROM THIS: container status, CPU, memory, uptime, alerts, and task/session/token stats. For projects, status means lifecycle: phase, what shipped, and what is next. Use live health only when explicitly asked. Use these observations rather than claiming no access.'
   );
 
   const text = lines.join("\n");

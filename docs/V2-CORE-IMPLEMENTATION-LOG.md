@@ -47,3 +47,7 @@ Resolve baseline evidence gate, create jarvis-v2-core from verified main in this
 ## 2026-09-06 — Baseline exception authorized
 
 Nickel authorized trusted-network / disabled authentication for isolated build tests, with no authentication-flow changes without asking. The already collected localhost-only test captures are accepted as the Phase 0 baseline under this authorization; they are not represented as authenticated Cloudflare captures. Production stays fail-closed, its configuration is untouched, and the override is process-scoped only. Implementation proceeds through Phases 1–3, then stops at the static design-review gate.
+
+## Phase 1 — Esports removal
+
+Removed all sports routes, pages, widgets, upstream clients, feature flags, assistant lookup/prepass and snapshot slices, dedicated tests and feature documentation. Generic project/Vault fixtures remain intentionally: project names are not runtime integrations. Added runtime dependency/config/route boundary coverage. Chat dispatch, validation, origin/rate/concurrency guards, usage recording, restricted transport and Vault writes are unchanged. Checks: 263 remaining tests, lint and build passed before adding removal coverage; boundary test receipt follows. No production changes.

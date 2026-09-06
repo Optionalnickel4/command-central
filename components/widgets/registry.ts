@@ -3,14 +3,11 @@ import HomelabPanel from "./homelab-panel";
 import WeatherWidget from "./weather-widget";
 import CalendarWidget from "./calendar-widget";
 import NewsWidget from "./news-widget";
-import EsportsScoreboard from "./esports-scoreboard";
-import EsportsStandings from "./esports-standings";
-import EsportsNews from "./esports-news";
 
 /**
  * THE EXTENSION POINT.
  *
- * To add a new widget later (esports, Sol status, game servers, anything):
+ * To add a new widget later (Sol status, game servers, anything):
  *   1. Build the component in components/widgets/<name>.tsx — it owns its
  *      own data fetching (see weather-widget.tsx for the simplest example).
  *   2. Add a matching route at app/api/widgets/<name>/route.ts returning
@@ -27,33 +24,16 @@ export const widgetRegistry: WidgetDefinition[] = [
   { id: "weather", section: "general", cluster: "right", component: WeatherWidget },
   { id: "calendar", section: "general", cluster: "right", component: CalendarWidget },
   { id: "news", section: "general", cluster: "right", component: NewsWidget },
-  // Esports rides in the right column under "general" — compact, column-width.
-  { id: "esports-scoreboard", section: "esports", cluster: "right", component: EsportsScoreboard },
-  { id: "esports-standings", section: "esports", cluster: "right", component: EsportsStandings },
-  { id: "esports-news", section: "esports", cluster: "right", component: EsportsNews }
 ];
 
 /** Display names for section headers in the cockpit. */
 export const SECTION_TITLES: Record<string, string> = {
   homelab: "Homelab",
   general: "General",
-  esports: "Esports"
 };
 
-/**
- * The registry filtered for this instance. Esports is gated by ENABLE_ESPORTS
- * (lib/features.ts): with the flag off its entries are never registered, so the
- * section simply doesn't exist and the clusters reflow around it.
- *
- * The flag is resolved on the SERVER and passed in, because this module is also
- * bundled into the client command bar, where process.env is not readable.
- */
-function visibleWidgets(esports: boolean): WidgetDefinition[] {
-  return esports ? widgetRegistry : widgetRegistry.filter((w) => w.section !== "esports");
-}
-
-export function getWidgetsBySection(section: string, esports = true): WidgetDefinition[] {
-  return visibleWidgets(esports).filter((w) => w.section === section);
+export function getWidgetsBySection(section: string): WidgetDefinition[] {
+  return widgetRegistry.filter((w) => w.section === section);
 }
 
 /**
@@ -61,9 +41,9 @@ export function getWidgetsBySection(section: string, esports = true): WidgetDefi
  * quick-jump buttons build themselves from this, so a new section shows up
  * there automatically.
  */
-export function getAllSections(esports: boolean): { section: string; title: string }[] {
+export function getAllSections(): { section: string; title: string }[] {
   const order: string[] = [];
-  for (const w of visibleWidgets(esports)) {
+  for (const w of widgetRegistry) {
     if (!order.includes(w.section)) order.push(w.section);
   }
   return order.map((section) => ({ section, title: SECTION_TITLES[section] ?? section }));
@@ -74,10 +54,9 @@ export function getAllSections(esports: boolean): { section: string; title: stri
  * This is what the cockpit renders on each side of the core.
  */
 export function getClusterSections(
-  cluster: WidgetCluster,
-  esports: boolean
+  cluster: WidgetCluster
 ): { section: string; title: string; widgets: WidgetDefinition[] }[] {
-  const inCluster = visibleWidgets(esports).filter((w) => (w.cluster ?? "right") === cluster);
+  const inCluster = widgetRegistry.filter((w) => (w.cluster ?? "right") === cluster);
   const order: string[] = [];
   for (const w of inCluster) {
     if (!order.includes(w.section)) order.push(w.section);

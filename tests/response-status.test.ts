@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   BAD_UPSTREAM, INTERNAL_ERROR, NOT_PRESENT, OK, UPSTREAM_UNAVAILABLE,
-  aggregateStatus, esportsGate, widgetStatus
+  aggregateStatus, widgetStatus
 } from "@/lib/response-status";
 
 /**
@@ -77,47 +77,3 @@ describe("the codes themselves", () => {
   });
 });
 
-describe("esportsGate — config-absent vs a real outage", () => {
-  /**
-   * The distinction this gate exists for: "no VLR_API_URL" and "VLR_API_URL is
-   * set but the host is down" must not read alike to a consumer. Only the
-   * second one is a 503.
-   */
-  it("does not answer 503 when VLR_API_URL is unset — nothing is broken", () => {
-    const gate = esportsGate(true, false);
-    expect(gate.ready).toBe(false);
-    expect(gate).not.toMatchObject({ status: UPSTREAM_UNAVAILABLE });
-    expect(gate).toMatchObject({ status: NOT_PRESENT, error: "esports not configured" });
-  });
-
-  it("treats an unset URL the same way as the disabled flag: not part of this instance", () => {
-    const disabled = esportsGate(false, true);
-    const unconfigured = esportsGate(true, false);
-
-    expect(disabled).toMatchObject({ ready: false, status: NOT_PRESENT });
-    expect(unconfigured).toMatchObject({ ready: false, status: NOT_PRESENT });
-    // Same status, distinguishable body — a cloner can tell which one they hit.
-    expect(disabled).toMatchObject({ error: "esports disabled" });
-    expect(unconfigured).toMatchObject({ error: "esports not configured" });
-  });
-
-  it("keeps the disabled path at 404, unchanged, whatever the URL says", () => {
-    expect(esportsGate(false, false)).toMatchObject({ ready: false, status: NOT_PRESENT });
-    expect(esportsGate(false, true)).toMatchObject({ ready: false, status: NOT_PRESENT });
-  });
-
-  it("lets a configured instance through, so only a FAILED call decides 503", () => {
-    expect(esportsGate(true, true)).toEqual({ ready: true });
-    // Past the gate, an unreachable-but-configured vlr-api is the outage case,
-    // and that is still a 503.
-    expect(widgetStatus("error")).toBe(UPSTREAM_UNAVAILABLE);
-    expect(widgetStatus("ok")).toBe(OK);
-  });
-
-  it("never returns a 5xx for any gate outcome — the gate is pre-flight, not failure", () => {
-    for (const [enabled, configured] of [[false, false], [false, true], [true, false]]) {
-      const gate = esportsGate(enabled, configured) as { ready: false; status: number };
-      expect(gate.status).toBeLessThan(500);
-    }
-  });
-});

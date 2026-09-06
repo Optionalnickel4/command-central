@@ -1,7 +1,7 @@
 import type { ComponentType } from "react";
 
 // Every dashboard section (today: "homelab", "general" — tomorrow maybe
-// "esports", "sol") is just a string key. Adding a new section doesn't
+// "sol", "media") is just a string key. Adding a new section doesn't
 // require touching the cockpit shell, only registry entries.
 export type WidgetSection = "homelab" | "general" | string;
 

@@ -62,37 +62,8 @@ export function widgetStatus(status: "ok" | "error"): number {
 }
 
 /**
- * The pre-flight gate every esports route runs before it touches vlr-api.
- *
- * Three outcomes, and the middle one is the point of this helper: "no
- * VLR_API_URL" and "VLR_API_URL is set but the host is down" are DIFFERENT
- * situations and must not read alike to a consumer.
- *
- *   flag off        → 404. Not part of this instance.
- *   URL unset       → 404. Config absent — a clone mid-setup with esports left
- *                     on but no vlr-api pointed at yet. Nothing is broken, so a
- *                     503 ("this was supposed to work and didn't") would lie.
- *   configured      → ready: go and fetch. Only a FAILED call is a 503, and
- *                     that is decided later, by widgetStatus.
- *
- * Pure, and takes the two booleans rather than reading env itself, so the
- * routes keep using the existing esportsEnabled() / hasVlrConfig() helpers —
- * the checks stay in one place each and this only decides what they mean.
- */
-export type EsportsGate =
-  | { ready: false; status: number; error: string }
-  | { ready: true };
-
-export function esportsGate(enabled: boolean, configured: boolean): EsportsGate {
-  if (!enabled) return { ready: false, status: NOT_PRESENT, error: "esports disabled" };
-  if (!configured) return { ready: false, status: NOT_PRESENT, error: "esports not configured" };
-  return { ready: true };
-}
-
-/**
  * The config-state code for a plain single-source panel (weather, news,
- * calendar) whose only configuration is env vars — the same distinction
- * esportsGate draws, for features that have no enable flag to weigh.
+ * calendar) whose only configuration is env vars.
  *
  * "Never configured" and "configured but the upstream is down" are different
  * situations, and only the second is a 503. A panel that was never pointed at
