@@ -1,3 +1,5 @@
+> **jarvis-v2-core review branch:** Axiom is at the static design-review gate, not deployed. The seven primary pages use labeled sample data. See [review evidence and interaction map](docs/AXIOM-DESIGN-REVIEW.md). Production remains on main. Historical usage instructions below describe the retained live application, not completed Axiom migration.
+
 # Command Central
 
 A self-hosted JARVIS-style dashboard for a homelab. It brings live Proxmox status, an AI assistant with voice, OpenClaw agent stats, read-only media services into one HUD.

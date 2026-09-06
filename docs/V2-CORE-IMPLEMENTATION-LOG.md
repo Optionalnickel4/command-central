@@ -1,5 +1,7 @@
 # V2-Core — Axiom implementation log
 
+**Current status: Phases 0–3 complete; static design review awaiting Nickel. Production unchanged.**
+
 ## 2026-09-06 — Phase 0, baseline collected; authentication gate pending
 
 The complete authoritative host brief and repository CLAUDE.md were read before implementation. No application changes, commits, branch switch, service restart, or deployment have occurred.
@@ -55,3 +57,13 @@ Removed all sports routes, pages, widgets, upstream clients, feature flags, assi
 ## Phase 2 — Selective foundation port
 
 Ported only operational-health and request coordinator logic with their focused tests from frozen JARVIS-V2, plus response freshness metadata and source-independent presentation semantics. No visual components or broad branch merges. Removed sports domain from the port. Added regressions for hidden-tab freshness expiry, HTTP error-envelope backoff, hard jitter cap, aborted-request remount race, and sanitized transport failures. SSR uses a stable empty coordinator snapshot. All 288 tests, lint and build pass.
+
+## Phase 3 — Static Axiom design-review gate
+
+Built a fixture-only shell with semantic registry composition, seven stable preview routes, estate topology/list, attention and context rails, local navigation palette, focus-managed URL-addressable inspector, mobile summary and More navigation. Self-hosted existing fonts; no new runtime dependencies. Retired home boot/orb/ticker/orbital components. Legacy Sol/Vault and media surfaces remain available explicitly; no live source migration is claimed.
+
+Evidence: 288 tests, lint and build pass. Browser matrix: five widths without document/element overflow, one h1, zero idle animations, no JS errors, no API requests. WCAG A/AA scans of widths, states, inspector and all seven destinations: zero violations. Keyboard, touch, focus restoration, query deep-link reload, palette filtering, editable-field guard, inventory filtering, 44px touch targets, forced colors and reduced motion pass. 200% equivalent reflow captured; actual browser-menu zoom is deferred to final release verification. Screenshots and interaction recording are under axiom-static, with an HTML gallery and review document.
+
+Decoded initial JS is 490657 bytes (baseline 527421); zero static API calls is not a live performance result. Remaining live-source, voice/chat, Core Web Vitals and release checks are explicitly deferred. The test instance used a process-scoped trusted-network mode bound only to localhost and is now stopped. No production environment was copied into it. Production PID remains 11960, clean main remains at 90732ec, unauthenticated HTTP remains 401, environment fingerprint unchanged, frozen JARVIS-V2 remains at 1925757. No auth-flow/security/Proxmox/Vault-write changes.
+
+Next: Nickel reviews the static design and interaction map before Phase 4. No production deployment or restart authorized by the test-mode exception.

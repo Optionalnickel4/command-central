@@ -1,0 +1,113 @@
+{
+  "checks": [
+    "Inspector heading focus, Escape close, URL state and trigger focus restoration",
+    "Command palette shortcut, destination filter, normal-link navigation, inventory filter and editable-field shortcut guard",
+    "Inspector direct deep link survives refresh",
+    "Accessible estate list exposes all seven topology entities",
+    "Explicit rail collapse and expand",
+    "Deterministic outage-to-healthy scenario transition (not live recovery)",
+    "200% reflow equivalent: 1440px display / 720 CSS px, no overflow",
+    "Touch inspector, modal focus containment, More navigation and 44px touch targets"
+  ],
+  "layout": [
+    {
+      "viewport": 390,
+      "document": 390,
+      "h1": 1,
+      "animations": 0,
+      "outside": []
+    },
+    {
+      "viewport": 768,
+      "document": 768,
+      "h1": 1,
+      "animations": 0,
+      "outside": []
+    },
+    {
+      "viewport": 1024,
+      "document": 1024,
+      "h1": 1,
+      "animations": 0,
+      "outside": []
+    },
+    {
+      "viewport": 1440,
+      "document": 1440,
+      "h1": 1,
+      "animations": 0,
+      "outside": []
+    },
+    {
+      "viewport": 1920,
+      "document": 1920,
+      "h1": 1,
+      "animations": 0,
+      "outside": []
+    }
+  ],
+  "errors": [],
+  "api": [],
+  "a11y": [
+    {
+      "name": "command-390",
+      "violations": []
+    },
+    {
+      "name": "command-768",
+      "violations": []
+    },
+    {
+      "name": "command-1024",
+      "violations": []
+    },
+    {
+      "name": "command-1440",
+      "violations": []
+    },
+    {
+      "name": "command-1920",
+      "violations": []
+    },
+    {
+      "name": "inspector",
+      "violations": []
+    },
+    {
+      "name": "healthy",
+      "violations": []
+    },
+    {
+      "name": "stale",
+      "violations": []
+    },
+    {
+      "name": "outage",
+      "violations": []
+    },
+    {
+      "name": "/systems",
+      "violations": []
+    },
+    {
+      "name": "/agents",
+      "violations": []
+    },
+    {
+      "name": "/media",
+      "violations": []
+    },
+    {
+      "name": "/projects",
+      "violations": []
+    },
+    {
+      "name": "/activity",
+      "violations": []
+    },
+    {
+      "name": "/settings",
+      "violations": []
+    }
+  ]
+}

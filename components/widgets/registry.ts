@@ -1,69 +1,22 @@
-import type { WidgetCluster, WidgetDefinition } from "./types";
-import HomelabPanel from "./homelab-panel";
-import WeatherWidget from "./weather-widget";
-import CalendarWidget from "./calendar-widget";
-import NewsWidget from "./news-widget";
+import type { ComponentType } from "react";
+import { AgentsPane, ContextUtilities, EstatePane, OperationsPane } from "@/components/axiom/panes";
+import type { AxiomPaneProps } from "@/components/axiom/panes";
 
-/**
- * THE EXTENSION POINT.
- *
- * To add a new widget later (Sol status, game servers, anything):
- *   1. Build the component in components/widgets/<name>.tsx — it owns its
- *      own data fetching (see weather-widget.tsx for the simplest example).
- *   2. Add a matching route at app/api/widgets/<name>/route.ts returning
- *      the shared WidgetResponse<T> shape, including
- *      `export const dynamic = "force-dynamic"` (see any existing route).
- *   3. Add one entry below, choosing which cluster it orbits in.
- *   4. For a brand-new section, add its title to SECTION_TITLES.
- *
- * The cockpit shell reads clusters, not individual widgets — so nothing
- * else needs to change. Order in this array is display order.
- */
-export const widgetRegistry: WidgetDefinition[] = [
-  { id: "homelab-status", section: "homelab", cluster: "left", component: HomelabPanel },
-  { id: "weather", section: "general", cluster: "right", component: WeatherWidget },
-  { id: "calendar", section: "general", cluster: "right", component: CalendarWidget },
-  { id: "news", section: "general", cluster: "right", component: NewsWidget },
+/** Single composition seam. The shell knows surfaces, not source widgets.
+ * Live renderers replace these fixture renderers only after design approval. */
+export interface AxiomFeature {
+ id: string; domain: string; priority: number;
+ surface: "workspace" | "support" | "utilities";
+ density: "wide" | "compact"; visibility: "always";
+ detailHref: string; capability: string;
+ component: ComponentType<AxiomPaneProps>;
+}
+export const widgetRegistry: AxiomFeature[] = [
+ { id: "estate", domain: "systems", priority: 10, surface: "workspace", density: "wide", visibility: "always", detailHref: "/systems", capability: "proxmox", component: EstatePane },
+ { id: "operations", domain: "media", priority: 20, surface: "support", density: "compact", visibility: "always", detailHref: "/media", capability: "media", component: OperationsPane },
+ { id: "agents", domain: "assistant", priority: 30, surface: "support", density: "compact", visibility: "always", detailHref: "/agents", capability: "assistant", component: AgentsPane },
+ { id: "context", domain: "context", priority: 40, surface: "utilities", density: "wide", visibility: "always", detailHref: "/activity", capability: "context", component: ContextUtilities }
 ];
-
-/** Display names for section headers in the cockpit. */
-export const SECTION_TITLES: Record<string, string> = {
-  homelab: "Homelab",
-  general: "General",
-};
-
-export function getWidgetsBySection(section: string): WidgetDefinition[] {
-  return widgetRegistry.filter((w) => w.section === section);
-}
-
-/**
- * Every section in registry order, with display titles. The command bar's
- * quick-jump buttons build themselves from this, so a new section shows up
- * there automatically.
- */
-export function getAllSections(): { section: string; title: string }[] {
-  const order: string[] = [];
-  for (const w of widgetRegistry) {
-    if (!order.includes(w.section)) order.push(w.section);
-  }
-  return order.map((section) => ({ section, title: SECTION_TITLES[section] ?? section }));
-}
-
-/**
- * Widgets in one cluster, grouped into sections and kept in registry order.
- * This is what the cockpit renders on each side of the core.
- */
-export function getClusterSections(
-  cluster: WidgetCluster
-): { section: string; title: string; widgets: WidgetDefinition[] }[] {
-  const inCluster = widgetRegistry.filter((w) => (w.cluster ?? "right") === cluster);
-  const order: string[] = [];
-  for (const w of inCluster) {
-    if (!order.includes(w.section)) order.push(w.section);
-  }
-  return order.map((section) => ({
-    section,
-    title: SECTION_TITLES[section] ?? section,
-    widgets: inCluster.filter((w) => w.section === section)
-  }));
+export function getSurface(surface: AxiomFeature["surface"]) {
+ return widgetRegistry.filter(w => w.surface === surface).sort((a, b) => a.priority - b.priority);
 }

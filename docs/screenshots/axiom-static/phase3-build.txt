@@ -1,0 +1,55 @@
+
+> command-central@0.1.0 build
+> next build
+
+▲ Next.js 16.3.4 (Turbopack)
+✓ Running next.config.mjs took 12ms
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 2.6s
+  Running TypeScript ...
+  Finished TypeScript in 1922ms ...
+  Collecting page data using 1 worker ...
+  Generating static pages using 1 worker (0/13) ...
+  Generating static pages using 1 worker (3/13) 
+  Generating static pages using 1 worker (6/13) 
+  Generating static pages using 1 worker (9/13) 
+✓ Generating static pages using 1 worker (13/13) in 254ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ○ /activity
+├ ○ /agents
+├ ƒ /api/calendar/callback
+├ ƒ /api/calendar/connect
+├ ƒ /api/chat
+├ ƒ /api/media
+├ ƒ /api/sol/audit
+├ ƒ /api/sol/capability
+├ ƒ /api/sol/sessions
+├ ƒ /api/sol/status
+├ ƒ /api/sol/usage
+├ ƒ /api/tts
+├ ƒ /api/vault
+├ ƒ /api/vault/[name]
+├ ƒ /api/widgets/calendar
+├ ƒ /api/widgets/homelab
+├ ƒ /api/widgets/homelab-detail
+├ ƒ /api/widgets/news
+├ ƒ /api/widgets/weather
+├ ○ /legacy/media
+├ ○ /media
+├ ○ /projects
+├ ○ /settings
+├ ○ /sol
+├ ○ /systems
+└ ○ /vault
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

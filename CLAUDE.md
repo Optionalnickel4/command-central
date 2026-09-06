@@ -1,177 +1,46 @@
-# CLAUDE.md — Command Central
+# Command Central — working constraints
 
-Personal "Jarvis" dashboard. Next.js 14 (App Router) + TypeScript + Tailwind,
-running as a systemd service on this box. Read this fully before changing anything.
+## Current branch and scope
 
-## Where this runs
+Production is the existing main build in LXC 220. The jarvis-v2-core branch is an isolated **Axiom static design review**, through Phase 3 only. Do not migrate live data, switch the production checkout, or restart the production service until the applicable review gate is explicitly approved.
 
-- This container is LXC **220** (`command-central`, `10.0.0.22`), Debian 13.
-- The app is served by the **`command-central`** systemd service on port 3000.
-  - `systemctl restart command-central` to apply changes (after `npm run build`).
-  - `journalctl -u command-central -n 50 --no-pager` for logs.
-- LAN-only, no auth, not internet-facing. Do not add auth or expose it.
-  (Superseded — see *Auth model* below. Auth was added on the SOL-AUDITS branch.)
+Read docs/AXIOM-DESIGN-REVIEW.md and docs/V2-CORE-IMPLEMENTATION-LOG.md for current evidence and boundaries. JARVIS-V2 at 1925757 is frozen reference logic, not a branch to merge. Earlier visual briefs in docs are historical, not current instructions.
 
-## Auth model
+## Security and operating rules
 
-The app is **fail-closed**. `proxy.ts` verifies a Cloudflare Access JWT
-(`cf-access-jwt-assertion` header or the `CF_Authorization` cookie) on every
-request and returns `401` without one, so an unauthenticated request — a
-loopback `curl` included — correctly gets `401 {"error":"unauthorized"}`, while
-a browser carrying a valid Access JWT gets data as normal. `APP_AUTH_MODE`
-selects the mode (`cloudflare-access` | `trusted-network` | `off`); production
-defaults to `cloudflare-access`. This also means the "serves 200 at
-localhost:3000" check under *Testing your work* is now a 200 only for an
-authenticated request.
-
-Internal consumers do NOT go through the HTTP routes. The assistant's context
-snapshot calls the `lib/` data functions (`fetchHomelab()`, `fetchHomelabDetail()`,
-`fetchEsportsMatches()`, `fetchSolStatus()`, `fetchSolUsage()`) directly, which
-is why it reads live data while the routes stay locked. The API routes exist for
-the browser.
-
-**Never weaken auth to make a 401 go away** — no trusting `127.0.0.1`/loopback,
-no internal bypass token, no exempting `/api/widgets/*` from the matcher. A 401
-on an unauthenticated request is the security layer doing its job. If new
-server-side code needs data, import the `lib/` function the route wraps; if that
-is genuinely impossible for some source, stop and ask rather than opening a hole.
-
-## Golden rules (don't break these)
-
-1. **Never touch the Proxmox fetch mechanism in `app/api/widgets/homelab/route.ts`
-   without care.** It uses Node's `https` module directly (NOT `fetch`/undici)
-   specifically because undici ignores the self-signed-cert bypass and throws
-   `UND_ERR_INVALID_ARG`. `fetch` + a dispatcher was tried and failed. If you
-   "modernize" this to fetch, the homelab panel goes dark. Leave the https
-   approach in place.
-2. **Never loosen the SSH key that reaches OpenClaw.** The assistant panel talks
-   to the Sol agent by SSHing to `10.0.0.152` with `/root/.ssh/openclaw_agent`.
-   That key is restricted on the far side (authorized_keys `command=`) to ONLY
-   run one wrapper. Don't try to widen it, add commands, or run arbitrary things
-   over it. Don't copy the key anywhere.
-3. **Secrets live in `.env.local` only.** Never hardcode the Proxmox token, and
-   never print `.env.local` contents into a file that could be committed. It's
-   gitignored — keep it that way.
-4. **Always `npm run build` before restarting the service.** The service runs
-   `next start` (production), not dev — an unbuilt change won't show.
-5. After any change, verify `npm run build` passes, then check the data path —
-   but read the *Auth model* section first, because the obvious curl now 401s
-   **by design**:
-   - `curl -i localhost:3000/api/widgets/homelab` → expect **401
-     `{"error":"unauthorized"}`**. That is the auth layer working. A `200` here
-     would mean auth is bypassed and is the actual failure to chase.
-   - For the DATA path, run a throwaway instance in LAN-trust mode and curl
-     that: `APP_AUTH_MODE=trusted-network npx next start -p 3001`, then
-     `curl -s localhost:3001/api/widgets/homelab | head -c 80` → `"status":"ok"`
-     with real data. Stop it by port afterwards; `pkill -f "next start"` also
-     matches the production service and will take the dashboard down.
-   - Or skip HTTP entirely and call the data function the route wraps
-     (`fetchHomelab()` in `lib/homelab.ts`) — the same path the assistant's
-     snapshot uses.
-   Don't leave the homelab panel broken. Never "fix" a 401 by weakening auth.
+1. Preserve fail-closed Cloudflare Access authentication in proxy.ts. Production defaults to cloudflare-access. Unauthenticated requests, including localhost, must return 401.
+2. APP_AUTH_MODE supports cloudflare-access, trusted-network, and off. Nickel explicitly authorized auth-disabled/trusted-network **isolated build testing** on 2026-09-06, but no auth-flow changes without asking. Scope test overrides to a throwaway process bound to 127.0.0.1; never alter production configuration to make a 401 disappear.
+3. Internal consumers import the lib data function behind a route, never call protected routes over loopback. No bypass token, local-IP exemption, or matcher exemption.
+4. Proxmox uses Node https in lib/pve.ts, not fetch/undici. The self-signed endpoint requires this existing mechanism. Preserve it.
+5. The SSH key to OpenClaw is restricted to its existing wrapper. Do not widen authorized_keys, add commands to the wrapper, copy the key, or use it for arbitrary operations.
+6. Keep secrets only in the existing gitignored .env.local. Do not print, copy, commit or modify that file. Compare its fingerprint before/after without displaying the fingerprint.
+7. Preserve origin validation, request/body bounds, rate/concurrency limits, sanitization, and Vault path/symlink protections. Vault writes remain explicit-confirm, append-only proposals.
+8. Every live GET API route must be force-dynamic. Source failures remain independent. Partial success remains usable; total upstream failure is a failure, not fabricated health.
+9. Before an approved production restart, build successfully in the correct checkout. Never use a broad process kill: target only the exact recorded test PID after verifying its identity.
+10. No production action is needed for static review. An unauthenticated production 401 is a successful security check; it is not evidence that the underlying data source failed.
 
 ## Architecture
 
-```
-app/
-  page.tsx                → renders <DashboardShell/>
-  layout.tsx              → self-hosted fonts (@fontsource), NO next/font/google
-                            (that needs network at build; we avoid it)
-  globals.css             → all the HUD styling (grid bg, glow, scanlines, ticker)
-  api/
-    chat/route.ts         → assistant: SSHes to Sol on 10.0.0.152, parses
-                            result.payloads[].text from `openclaw agent --json`
-    widgets/<name>/route.ts → one API route per widget, all return the shared
-                            WidgetResponse<T> shape { status, updatedAt, data }
-    widgets/homelab/       → LIGHT: one cluster/resources call, polled 15s
-    widgets/homelab-detail/ → HEAVY: per-guest status/current + config and
-                            node status, fanned out with Promise.all and
-                            cached ~12s server-side. Polled 30s.
-components/
-  dashboard-shell.tsx     → the cockpit: header, orbit conduits, left/right
-                            clusters framing the Sol core, ticker
-  sol-orb.tsx             → THE CENTREPIECE: layered SVG arc-reactor core
-  sol-state.tsx           → SolStateProvider + useSolState (idle/thinking/
-                            speaking/error). Presentation state only.
-  boot-sequence.tsx       → cinematic power-on overlay (skippable)
-  parallax-root.tsx       → publishes --mx/--my for the depth effect
-  system-pulse.tsx        → publishes --sys-load/--sys-heat/--sys-alert
-  command-bar.tsx         → persistent bottom console: cluster summary,
-                            quick-jump chips, "/" command input → Sol
-  homelab-feed.tsx        → ONE shared poll of the light homelab route for
-                            the chrome (ticker, pulse, command bar). Registry
-                            widgets still fetch their own data.
-  ticker.tsx              → scrolling live-vitals marquee
-  widget-cluster.tsx      → renders one orbital cluster (left|right) from the
-                            registry, grouped by section
-  assistant-panel.tsx     → the Sol chat console, under the orb
-  widgets/
-    registry.ts           → THE list: {id, section, cluster, component} plus
-                            SECTION_TITLES. How sections/widgets are added.
-    types.ts              → WidgetDefinition + WidgetResponse<T>
-    radial-gauge.tsx      → animated SVG dial (CPU/RAM)
-    history-graph.tsx     → animated rolling line/area graph
-    hud-bars.tsx          → animated bar graph
-    <name>-widget.tsx     → one component per widget; uses useWidgetData()
-lib/
-  fetcher.ts              → useWidgetData<T>(url, intervalMs) polling hook
-  history.ts              → useRollingHistory(value, stamp) client-side window
-  pve.ts                  → THE Proxmox client (Node https, NOT fetch — rule 1).
-                            Shared by both homelab routes.
-  format.ts               → formatBytes / formatUptime / pctOf
-```
+- Next.js 16 / React 19 / TypeScript / Tailwind. Keep the framework and self-hosted fonts.
+- components/dashboard-shell.tsx wraps the Axiom shell, which consumes semantic surfaces from components/widgets/registry.ts. Do not hand-import domain widgets into the shell.
+- components/axiom contains the fixture shell, panes, modal/state primitives and review data.
+- app/axiom.css owns Axiom tokens, responsive geometry, z-index, focus and forced-color/reduced-motion behavior.
+- Registry metadata: stable id, domain, priority, surface, density, visibility, destination, capability and renderer.
+- lib/operational-health.ts normalizes health, freshness, severity and incident order.
+- lib/fetcher.ts coordinates shared requests, cadence, visibility, online state, backoff, cancellation and last-known-good freshness. Preserve focused behavior tests.
+- lib/presentation-state.ts supplies shared labels and non-color state symbols.
+- Source-specific routes and lib functions are retained for later migration, except sports integration, which is removed only from V2-Core.
+- Previous Sol/Vault/media functionality remains at /sol, /vault and /legacy/media for migration reference. It has not received final Axiom interaction styling.
+- Historical HUD CSS remains only for those legacy views; boot, orbital home clusters, home ticker and permanent orb are retired from Axiom.
 
-## How to add a widget or section (the extension pattern)
+## Adding a source later
 
-1. Create `app/api/widgets/<name>/route.ts` returning `WidgetResponse<T>`
-   (copy an existing route — weather is the simplest). It MUST include
-   `export const dynamic = "force-dynamic"` or the panel freezes on
-   build-time data.
-2. Create `components/widgets/<name>-widget.tsx`, a client component calling
-   `useWidgetData<T>("/api/widgets/<name>")`.
-3. Register it in `components/widgets/registry.ts` — one line, choosing which
-   `cluster` ("left" or "right") it orbits in.
-4. For a whole new SECTION, use a new `section` string and add its display
-   name to `SECTION_TITLES` in the same file.
+Create a force-dynamic server route wrapping the existing or new lib source function; return WidgetResponse with status, updatedAt and honest freshness metadata. Add a semantic registry entry and renderer. The shell must depend on normalized source-independent signals; browsers never call LAN backends directly. No new infrastructure integration belongs in the current design phase.
 
-Nothing else needs to change — the shell renders clusters, not individual
-widgets, so `dashboard-shell.tsx` is untouched even for a new section. Keep
-this pattern — don't hand-place widgets in the shell.
+## Verification
 
-## Data sources & env (.env.local)
+Run npm test, npm run lint, npm run build and git diff --check. Use the isolated localhost-only trusted-network server for browser tests, never a modified production auth flow. node scripts/axiom-verify.mjs records static-review widths, semantics, accessibility, interactions and screenshots. Test receipts are under docs/screenshots/axiom-static.
 
-- **Proxmox (homelab)** — WORKING. `PROXMOX_API_URL=https://10.0.0.45:8006`,
-  `PROXMOX_TOKEN_ID`, `PROXMOX_TOKEN_SECRET`. Read-only PVEAuditor token.
-  Node is named `lab`. Endpoint used: `/api2/json/cluster/resources`.
-- **Sol / OpenClaw (assistant)** — WORKING via SSH (see rule 2).
-- **Weather** — currently MOCK. Use open-meteo (no key). Lat/lon in env
-  (`WEATHER_LAT=39.9526`, `WEATHER_LON=-75.1652`, Philadelphia).
-- **Calendar / News** — currently MOCK. Google Calendar + a news API, later.
-- **vlr-api (esports)** — NEW, to be added. Self-hosted VLR.gg (Valorant esports)
-  REST API, reachable by URL (the user will provide `VLR_API_URL`). Read from a
-  new server-side route; never call it directly from client components.
+After live migration, additionally verify direct/lib or isolated HTTP live Proxmox data, Sol and Claude turns, Piper and microphone capabilities, media partial failures, Vault protection, request counts, real failure recovery and performance. Static sample success must not be described as those live checks passing.
 
-## Style system (HUD / "Jarvis")
-
-Everything lives in `globals.css`. Palette in `:root`: `--hud-cyan #22d3ee`,
-`--hud-amber #fbbf24`, `--hud-red #f43f5e`, `--hud-green #34d399`,
-bg `#030711`. Core classes: `.hud-panel` (glowing bordered panel with corner
-brackets), `.hud-scan` (scanline overlay), `.hud-glow-text`, `.live-pulse`,
-`.ticker-track`, `.hud-grid` (animated bg grid). Fonts are mono-forward
-(JetBrains Mono) for the terminal feel. Respect `prefers-reduced-motion` —
-existing animations already gate on it; keep that.
-
-## Testing your work
-
-- `npm run build` must pass (types + lint).
-- The site must still serve 200 at `localhost:3000`.
-- The homelab API must still return live data.
-- The Sol chat must still work (send a test message).
-Don't consider a change done until all four hold.
-
-## Operational notes (added after Phase 1)
-- To restart the service: `sudo systemctl restart command-central` — builder has
-  scoped passwordless sudo for exactly this (and `status`). Use it after every
-  build so changes go live.
-- Widget API routes must have `export const dynamic = "force-dynamic"` or Next
-  prerenders them at build time and the "live" panels freeze on build-time data.
+Axiom belongs to Command Central only; do not apply its visual language to unrelated projects by default.

@@ -11,6 +11,7 @@ import "@fontsource/inter/500.css";
 import "@fontsource/jetbrains-mono/400.css";
 import "@fontsource/jetbrains-mono/500.css";
 import "./globals.css";
+import "./axiom.css";
 
 export const metadata: Metadata = {
   title: "Command central",
@@ -18,11 +19,8 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  // data-boot ships in the SSR markup so panels hold at frame 0 of their
-  // power-on animation until <BootSequence/> hands over. It removes the
-  // attribute — immediately when prefers-reduced-motion is set.
   return (
-    <html lang="en" data-boot="active">
+    <html lang="en">
       <body className="font-body">{children}</body>
     </html>
   );
