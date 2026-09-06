@@ -10,6 +10,7 @@ import CommandBar from "@/components/command-bar";
 import { SolStateProvider } from "@/components/sol-state";
 import { HomelabFeedProvider } from "@/components/homelab-feed";
 import { esportsEnabled } from "@/lib/features";
+import { CockpitMotion } from "@/components/cockpit-motion";
 
 /** Small reticle mark that reads as the system's sigil. */
 function Sigil() {
@@ -103,7 +104,7 @@ function OrbitLinks() {
 
 export default function DashboardShell() {
   return (
-    <SolStateProvider>
+    <CockpitMotion><SolStateProvider>
       <HomelabFeedProvider>
       {/* Background depth stack */}
       <div className="hud-bg" />
@@ -119,7 +120,7 @@ export default function DashboardShell() {
       <BootSequence />
 
       <main className="parallax-root min-h-screen flex flex-col px-5 sm:px-8 py-4">
-        <header className="power-on flex items-center justify-between gap-4 pb-3">
+        <header className="cockpit-header power-on flex items-center justify-between gap-4 pb-3">
           <div className="flex items-center gap-3 min-w-0">
             <Sigil />
             <div className="min-w-0">
@@ -188,6 +189,6 @@ export default function DashboardShell() {
       <div className="hud-vignette" />
       <div className="hud-noise" />
       </HomelabFeedProvider>
-    </SolStateProvider>
+    </SolStateProvider></CockpitMotion>
   );
 }

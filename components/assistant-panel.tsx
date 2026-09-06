@@ -1,4 +1,5 @@
 "use client";
+import { MessageEntry, SelectionLight } from "@/components/cockpit-motion";
 
 import { useState, useRef, useEffect } from "react";
 import { BACKEND_LABEL, useSolState, type AssistantBackend } from "@/components/sol-state";
@@ -309,7 +310,8 @@ export default function AssistantPanel() {
               aria-pressed={backend === b}
               className={`backend-opt ${backend === b ? "is-active" : ""}`}
             >
-              {BACKEND_LABEL[b]}
+              {backend === b && <SelectionLight />}
+              <span className="backend-label">{BACKEND_LABEL[b]}</span>
             </button>
           ))}
         </div>
@@ -328,17 +330,16 @@ export default function AssistantPanel() {
               onSettled={(state) => settleProposal(i, state)}
             />
           ) : (
-            <div
+            <MessageEntry
               key={i}
               className={`message-bubble font-mono text-[12.5px] leading-relaxed rounded px-3 py-2 max-w-[92%] whitespace-pre-wrap ${
                 m.role === "user"
                   ? "is-user self-end bg-cyan-500/10 border border-cyan-500/30 text-cyan-100"
                   : "is-assistant self-start bg-slate-900/50 border border-slate-700/40 text-slate-200"
               }`}
-              style={m.role === "user" ? { boxShadow: "0 0 14px rgba(34,211,238,0.10)" } : undefined}
             >
               {m.content}
-            </div>
+            </MessageEntry>
           )
         )}
         {pending && (

@@ -1,0 +1,42 @@
+[
+  {
+    "width": 390,
+    "overflow": false,
+    "h1": 1,
+    "expanded": 201.6875,
+    "collapsed": true,
+    "switched": true,
+    "errors": [],
+    "axe": [],
+    "reducedAnimations": 0,
+    "chat": null
+  },
+  {
+    "width": 768,
+    "overflow": false,
+    "h1": 1,
+    "expanded": 123.734375,
+    "collapsed": true,
+    "switched": true,
+    "errors": [],
+    "axe": [],
+    "reducedAnimations": 0,
+    "chat": null
+  },
+  {
+    "width": 1440,
+    "overflow": false,
+    "h1": 1,
+    "expanded": 137.927001953125,
+    "collapsed": true,
+    "switched": true,
+    "errors": [],
+    "axe": [],
+    "reducedAnimations": 0,
+    "chat": {
+      "fixture": true,
+      "status": 200,
+      "hasReply": true
+    }
+  }
+]

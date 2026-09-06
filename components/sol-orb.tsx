@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { BACKEND_LABEL, SOL_LABEL, useSolState } from "@/components/sol-state";
 import { voiceAudio, VOICE_SPECTRUM_BINS } from "@/lib/voice-audio";
+import { MotionLabel } from "@/components/cockpit-motion";
 
 /**
  * The arc reactor — Sol rendered as a layered holographic core.
@@ -279,11 +280,11 @@ export default function SolOrb() {
       {/* Caption — names whoever is actually answering right now. */}
       <div className="flex flex-col items-center -mt-2">
         <span className="font-display text-[13px] font-semibold uppercase tracking-[0.55em] text-cyan-200 orb-caption">
-          {BACKEND_LABEL[backend]}
+          <MotionLabel value={backend}>{BACKEND_LABEL[backend]}</MotionLabel>
         </span>
         <span className="mt-1 flex items-center gap-2 font-mono text-[9.5px] uppercase tracking-[0.28em] orb-status">
           <span className="inline-block h-1 w-1 rounded-full orb-status-dot live-pulse" />
-          {SOL_LABEL[state]}
+          <MotionLabel value={state}>{SOL_LABEL[state]}</MotionLabel>
         </span>
         <span className="mt-1 font-mono text-[8px] uppercase tracking-[0.3em] text-slate-600">
           {backend === "claude" ? "Local CLI backend" : "OpenClaw · 10.0.0.152"}

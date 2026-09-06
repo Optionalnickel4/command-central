@@ -889,16 +889,6 @@ a:hover > .player-row {
 
 /* ---------- V1-plus motion and interaction polish ---------------- */
 
-@keyframes panel-refresh-glint {
-  0% { box-shadow: inset 0 0 0 rgba(34, 211, 238, 0), 0 10px 30px rgba(0, 0, 0, 0.45); }
-  32% { box-shadow: inset 0 0 32px rgba(34, 211, 238, 0.13), 0 0 34px rgba(34, 211, 238, 0.18), 0 14px 36px rgba(0, 0, 0, 0.48); }
-  100% { box-shadow: inset 0 0 22px rgba(34, 211, 238, calc(0.04 + var(--sys-load) * 0.07)), 0 10px 30px rgba(0, 0, 0, 0.45); }
-}
-
-html[data-widget-refresh="1"] .hud-panel:not(:hover) {
-  animation: panel-refresh-glint 0.72s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
 .hud-panel:focus-within {
   border-color: rgba(34, 211, 238, 0.62);
   box-shadow:
@@ -1039,7 +1029,6 @@ button[aria-expanded]:active {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  html[data-widget-refresh="1"] .hud-panel:not(:hover),
   .telemetry-skeleton,
   .loading-line::after,
   .message-bubble,
@@ -1069,7 +1058,57 @@ button[aria-expanded]:active {
 .command-bar {
   max-width: 100%;
 }
+
+/* Motion owns the outer wrapper; existing parallax stays on the inner panel. */
+.motion-slot { position: relative; min-width: 0; }
+.widget-update-line {
+  position: absolute;
+  top: 0;
+  left: 14px;
+  right: 14px;
+  height: 2px;
+  opacity: 0;
+  background: var(--hud-cyan);
+  transform-origin: left;
+  pointer-events: none;
+}
+.motion-disclosure { overflow: hidden; }
+.motion-label { display: inline-grid; }
+.motion-label > span { grid-area: 1 / 1; }
+.backend-opt { position: relative; isolation: isolate; min-height: 30px; }
+.backend-opt.is-active { background: transparent; box-shadow: none; }
+.backend-label { position: relative; z-index: 1; }
+.backend-selection {
+  position: absolute;
+  inset: 0;
+  background: rgba(34, 211, 238, 0.16);
+  box-shadow: inset 0 -2px 0 #67e8f9, inset 0 0 16px rgba(34, 211, 238, 0.15);
+  pointer-events: none;
+}
+.core-console .message-bubble { animation: none; }
+.core-console .message-bubble.is-user { box-shadow: inset 2px 0 0 rgba(34, 211, 238, 0.35); }
+.motion-slot .hud-panel {
+  background: linear-gradient(155deg, rgba(20, 27, 36, 0.92), rgba(5, 10, 15, 0.88));
+  border-color: rgba(111, 178, 188, 0.28);
+}
+.motion-slot .hud-panel::before { opacity: 0.8; transition: opacity 0.2s ease; }
+.motion-slot .hud-panel:hover::before { opacity: 1; }
+.motion-slot .hud-panel::after {
+  animation: none;
+  background: linear-gradient(rgba(34, 211, 238, 0.018) 50%, transparent 50%) 0 0 / 100% 4px;
+}
+.motion-slot .hud-panel:focus-within { border-color: #67e8f9; }
+.motion-slot .hud-panel p { overflow-wrap: anywhere; }
+.motion-slot .hud-panel .status-pill { letter-spacing: 0; min-height: 17px; }
+.sol-orb { transition: filter 0.45s ease; }
+.sol-orb[data-state="thinking"] { filter: drop-shadow(0 0 12px rgba(251, 191, 36, 0.12)); }
+.sol-orb[data-state="speaking"] { filter: drop-shadow(0 0 16px rgba(34, 211, 238, 0.18)); }
+@media (prefers-reduced-motion: reduce) {
+  .sol-orb, .motion-slot .hud-panel::before { transition: none; }
+}
 @media (max-width: 640px) {
+  .cockpit-header { flex-direction: column; align-items: stretch; gap: 12px; }
+  .cockpit-header > div:last-child { justify-content: space-between; }
   .command-bar {
     align-items: flex-start;
   }

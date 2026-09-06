@@ -1,6 +1,7 @@
 import { getClusterSections } from "@/components/widgets/registry";
 import type { WidgetCluster } from "@/components/widgets/types";
 import { esportsEnabled } from "@/lib/features";
+import { MotionSlot } from "@/components/cockpit-motion";
 
 /**
  * One orbital cluster — every registry widget assigned to this side of the
@@ -45,15 +46,11 @@ export default function WidgetCluster({
             {s.widgets.map((w) => {
               const Widget = w.component;
               const i = slot++;
-              // power-on and orbit-slot must stay on separate elements: the
-              // animation's fill-mode holds `transform: none` at its final
-              // frame, which would cancel the slot's inward tilt.
+              // Keep entrance transforms separate from the slot's inward tilt.
               return (
-                <div key={w.id} className="power-on" style={{ ["--i" as string]: i }}>
-                  <div className="orbit-slot">
-                    <Widget />
-                  </div>
-                </div>
+                <MotionSlot key={w.id} index={i}>
+                  <Widget />
+                </MotionSlot>
               );
             })}
           </div>

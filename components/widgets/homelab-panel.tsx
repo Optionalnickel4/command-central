@@ -1,4 +1,5 @@
 "use client";
+import { Disclosure } from "@/components/cockpit-motion";
 
 import { useState } from "react";
 import { useWidgetData } from "@/lib/fetcher";
@@ -189,8 +190,8 @@ function GuestRow({ guest, detail }: { guest: Guest; detail?: GuestDetail }) {
         </span>
       </button>
 
-      {open && (
-        <div className="px-3 pb-3 pt-1 bg-slate-950/40 row-detail">
+      <Disclosure open={open}>
+        <div className="px-3 pb-3 pt-1 bg-slate-950/40">
           {!detail ? (
             <p className="font-mono text-[10px] text-slate-500 live-pulse">Loading detail…</p>
           ) : (
@@ -233,7 +234,7 @@ function GuestRow({ guest, detail }: { guest: Guest; detail?: GuestDetail }) {
             </p>
           )}
         </div>
-      )}
+      </Disclosure>
     </div>
   );
 }

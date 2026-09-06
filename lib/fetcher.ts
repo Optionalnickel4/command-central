@@ -1,19 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
+import { WidgetFeedbackContext } from "@/lib/widget-feedback";
 import type { WidgetResponse } from "@/components/widgets/types";
-
-let widgetRefreshTimer: ReturnType<typeof setTimeout> | null = null;
-
-function pulseWidgetRefresh() {
-  if (typeof document === "undefined") return;
-  document.documentElement.dataset.widgetRefresh = "1";
-  if (widgetRefreshTimer) clearTimeout(widgetRefreshTimer);
-  widgetRefreshTimer = setTimeout(() => {
-    document.documentElement.removeAttribute("data-widget-refresh");
-    widgetRefreshTimer = null;
-  }, 700);
-}
 
 /**
  * Shared polling hook every widget uses to read its own /api/widgets/*
@@ -24,9 +13,13 @@ export function useWidgetData<T>(url: string, intervalMs = 30000) {
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const lastUpdatedRef = useRef<string | null>(null);
+  const notify = useContext(WidgetFeedbackContext);
+  const notifyRef = useRef(notify);
+  useEffect(() => { notifyRef.current = notify; }, [notify]);
 
   useEffect(() => {
     let cancelled = false;
+    let previousSnapshot: string | null = null;
 
     async function load() {
       const hadSnapshot = lastUpdatedRef.current !== null;
@@ -45,11 +38,13 @@ export function useWidgetData<T>(url: string, intervalMs = 30000) {
           throw new Error(`${url} responded ${res.status}`);
         }
         if (!cancelled) {
-          const changed = Boolean(json.updatedAt && json.updatedAt !== lastUpdatedRef.current);
+          const snapshot = JSON.stringify([json.status, json.data]);
+          const changed = previousSnapshot !== null && snapshot !== previousSnapshot;
+          previousSnapshot = snapshot;
           lastUpdatedRef.current = json.updatedAt ?? lastUpdatedRef.current;
           setState(json);
           setError(null);
-          if (changed && hadSnapshot) pulseWidgetRefresh();
+          if (changed) notifyRef.current?.();
         }
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load");
