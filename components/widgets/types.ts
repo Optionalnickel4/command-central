@@ -25,6 +25,10 @@ export interface WidgetDefinition {
 export interface WidgetResponse<T> {
   status: "ok" | "degraded" | "error";
   updatedAt: string;
+  staleAt?: string;
+  maxAgeMs?: number;
+  /** Stable sanitized diagnostic code, never raw upstream output. */
+  reasonCode?: string;
   data: T;
   /** True when `data` is hardcoded placeholder, not a live source. Absent on
    *  real routes, so a consumer (including the assistant snapshot) can tell

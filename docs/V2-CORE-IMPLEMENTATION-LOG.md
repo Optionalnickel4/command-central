@@ -51,3 +51,7 @@ Nickel authorized trusted-network / disabled authentication for isolated build t
 ## Phase 1 — Esports removal
 
 Removed all sports routes, pages, widgets, upstream clients, feature flags, assistant lookup/prepass and snapshot slices, dedicated tests and feature documentation. Generic project/Vault fixtures remain intentionally: project names are not runtime integrations. Added runtime dependency/config/route boundary coverage. Chat dispatch, validation, origin/rate/concurrency guards, usage recording, restricted transport and Vault writes are unchanged. Checks: 263 remaining tests, lint and build passed before adding removal coverage; boundary test receipt follows. No production changes.
+
+## Phase 2 — Selective foundation port
+
+Ported only operational-health and request coordinator logic with their focused tests from frozen JARVIS-V2, plus response freshness metadata and source-independent presentation semantics. No visual components or broad branch merges. Removed sports domain from the port. Added regressions for hidden-tab freshness expiry, HTTP error-envelope backoff, hard jitter cap, aborted-request remount race, and sanitized transport failures. SSR uses a stable empty coordinator snapshot. All 288 tests, lint and build pass.
