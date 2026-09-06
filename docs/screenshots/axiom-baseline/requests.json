@@ -1,0 +1,95 @@
+{
+  "mode": "isolated trusted-network, not authenticated production",
+  "windowSeconds": 59,
+  "total": 19,
+  "counts": {
+    "/api/widgets/homelab": 8,
+    "/api/widgets/homelab-detail": 2,
+    "/api/vault": 1,
+    "/api/widgets/weather": 1,
+    "/api/widgets/calendar": 1,
+    "/api/widgets/news": 1,
+    "/api/widgets/esports/matches": 2,
+    "/api/widgets/esports/rankings": 1,
+    "/api/widgets/esports/stats": 1,
+    "/api/widgets/esports/news": 1
+  },
+  "requests": [
+    {
+      "path": "/api/widgets/homelab",
+      "seconds": 0.6
+    },
+    {
+      "path": "/api/widgets/homelab-detail",
+      "seconds": 0.6
+    },
+    {
+      "path": "/api/vault",
+      "seconds": 0.6
+    },
+    {
+      "path": "/api/widgets/weather",
+      "seconds": 0.6
+    },
+    {
+      "path": "/api/widgets/calendar",
+      "seconds": 0.6
+    },
+    {
+      "path": "/api/widgets/news",
+      "seconds": 0.6
+    },
+    {
+      "path": "/api/widgets/esports/matches",
+      "seconds": 0.6
+    },
+    {
+      "path": "/api/widgets/esports/rankings",
+      "seconds": 0.6
+    },
+    {
+      "path": "/api/widgets/esports/stats",
+      "seconds": 0.6
+    },
+    {
+      "path": "/api/widgets/esports/news",
+      "seconds": 0.6
+    },
+    {
+      "path": "/api/widgets/homelab",
+      "seconds": 0.6
+    },
+    {
+      "path": "/api/widgets/homelab",
+      "seconds": 15.6
+    },
+    {
+      "path": "/api/widgets/homelab",
+      "seconds": 15.6
+    },
+    {
+      "path": "/api/widgets/homelab",
+      "seconds": 30.6
+    },
+    {
+      "path": "/api/widgets/homelab-detail",
+      "seconds": 30.6
+    },
+    {
+      "path": "/api/widgets/esports/matches",
+      "seconds": 30.6
+    },
+    {
+      "path": "/api/widgets/homelab",
+      "seconds": 30.6
+    },
+    {
+      "path": "/api/widgets/homelab",
+      "seconds": 45.6
+    },
+    {
+      "path": "/api/widgets/homelab",
+      "seconds": 45.6
+    }
+  ]
+}
